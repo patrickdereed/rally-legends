@@ -36,11 +36,21 @@ export class UI {
   }
 
   // ---------- frame ----------
-  go(v, p) { this.v = v; this.p = p || {}; this.render(); this.root.scrollTop = 0; const pn = this.root.querySelector(".panel-body"); if (pn) pn.scrollTop = 0; }
+  // Moving to a different screen starts at the top; staying on the same screen (buying a part,
+  // picking a stage or livery) keeps the scroll position.
+  go(v, p) {
+    const same = v === this.v;
+    this.v = v; this.p = p || {}; this.render();
+    if (!same) { this.root.scrollTop = 0; const pn = this.root.querySelector(".panel-body"); if (pn) pn.scrollTop = 0; }
+  }
   render() {
     const fn = this["v_" + this.v];
+    const keep = [".panel-body", ".liv-grid"].map(sel => [sel, this.root.querySelector(sel)?.scrollTop || 0]);
+    const rootTop = this.root.scrollTop;
     this.root.classList.remove("hidden");
     this.root.innerHTML = fn.call(this, this.p);
+    this.root.scrollTop = rootTop;
+    for (const [sel, top] of keep) { const el = this.root.querySelector(sel); if (el) el.scrollTop = top; }
     this.app.menuActive = true;
     if (this.afterRender) { const f = this.afterRender; this.afterRender = null; f(); }
   }
