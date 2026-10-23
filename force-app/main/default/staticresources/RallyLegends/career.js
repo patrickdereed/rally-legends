@@ -272,7 +272,7 @@ export class Career {
     const pace = this.diff.pace * (1 - rivalDevelopment(ev.round));
     return this.rivals(cls).map(rv => {
       let t = bench * pace * (1 + rv.skill + r.gauss() * 0.006);
-      if (r.chance(0.05)) t += r.range(8, 45); // the odd spin or puncture
+      if (r.chance(0.055)) t += r.range(8, 45); // the odd spin or puncture
       return Math.round(t * 100) / 100;
     });
   }
