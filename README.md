@@ -6,9 +6,9 @@ The game reads no Salesforce data and makes no callouts. Progress is saved in th
 
 ## What's in the game
 
-- **9 rallies, 27 stages:** Monte-Carlo (Col de Turini at night), Sweden, Finland, Wales, Portugal (Fafe), Kenya, Greece, Corsica and Argentina. Every stage is generated from a fixed seed: hairpins, switchbacks, crests and jumps, ice patches, snow banks, armco and stone walls, crowds, villages, forests, lakes and the sea.
+- **9 rallies, 27 stages:** Monte-Carlo (Col de Turini at night), Sweden, Finland, Wales, Portugal (Fafe), Kenya, Greece, Corsica and Argentina. Every stage is generated from a fixed seed: hairpins, switchbacks, crests and jumps, ice patches, snow banks, armco and stone walls, crowds, villages, forests, lakes and the sea. Many stages also run through rock and concrete tunnels (the light drops and the headlamps come on), over stone, timber and concrete bridges across river gorges, and through water splashes, with warning signs, field fences and log piles along the way.
 - **Mixed surfaces:** each stage alternates tarmac, concrete, gravel and mud (plus snow and sand where they belong), each with its own grip, wet-weather behaviour and look. The co-driver calls surface changes.
-- **Pace notes:** corners graded 1 to 6 plus hairpins, crests, jumps, ice and surface changes, spoken by the co-driver (browser speech) and shown as cards.
+- **Pace notes:** corners graded 1 to 6 plus hairpins, crests, jumps, ice, surface changes, tunnels, bridges and water splashes, spoken by the co-driver (browser speech) and shown as cards.
 - **10 cars, 2 per era:** Heritage (1960s), Group 4 (1970s), Group B (1980s), World Rally Car (1990s–2000s) and Rally1 Hybrid (2020s). Names are original.
 - **Season mode:** five championships with seven rivals per class, points, Power Stage bonus points, prize money, sponsor objectives, reputation levels that unlock each era, service-park repairs, stage retries and practice runs.
 - **Garage:** six upgrade categories (Engine, Drivetrain, Tyres, Suspension, Brakes, Weight), each with six levels bought in order (Street → Sport → Rally → Pro → Works → Legend). Seventeen livery designs in four colourways each, a custom paint shop, race numbers and wheels.

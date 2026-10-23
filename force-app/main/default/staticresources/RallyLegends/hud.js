@@ -151,6 +151,9 @@ export function noteCard(n, first) {
   else if (n.kind === "ice") { icon = "❄"; main = "ICE"; }
   else if (n.kind === "surface") { icon = "⇢"; main = n.to.toUpperCase(); sub.push("ONTO"); }
   else if (n.kind === "finish") { icon = "🏁"; main = "FINISH"; }
+  else if (n.kind === "tunnel") { icon = "◠"; main = "TUNNEL"; if (n.mods.includes("long")) sub.push("LONG"); }
+  else if (n.kind === "bridge") { icon = "⌒"; main = "BRIDGE"; sub.push("NARROWS"); }
+  else if (n.kind === "water") { icon = "≈"; main = "WATER"; sub.push("SPLASH"); }
   const link = n.link === "into" ? "INTO" : n.link === "and" ? "AND" : n.link ? String(n.link) : "";
   const caution = n.mods && n.mods.includes("caution");
   return `<div class="note ${first ? "first" : ""} ${caution ? "caution" : ""}"><div class="n-ico">${icon}</div><div class="n-main">${main}</div><div class="n-sub">${sub.filter(Boolean).join(" ")}</div><div class="n-link">${link}</div></div>`;

@@ -227,7 +227,8 @@ export const SURFACES = {
   deepsnow: { mu: 0.42, B: 10, C: 1.15, crr: 0.14,  rough: 0.3,  fx: "snow", label: "Deep snow" },
   rock:     { mu: 0.62, B: 14, C: 1.2,  crr: 0.05,  rough: 0.7,  fx: "dust", label: "Rocks" },
   scrub:    { mu: 0.55, B: 12, C: 1.2,  crr: 0.08,  rough: 0.5,  fx: "dust", label: "Scrub" },
-  water:    { mu: 0.3,  B: 10, C: 1.1,  crr: 0.6,   rough: 0.4,  fx: "splash", label: "Water" }
+  water:    { mu: 0.3,  B: 10, C: 1.1,  crr: 0.6,   rough: 0.4,  fx: "splash", label: "Water" },
+  ford:     { mu: 0.62, B: 13, C: 1.18, crr: 0.11,  rough: 0.35, fx: "splash", label: "Water splash" }
 };
 
 // ---------- Rallies ----------
@@ -238,6 +239,7 @@ export const SURFACES = {
 export const LOCATIONS = [
   {
     id: "monte", name: "Monte-Carlo", country: "Monaco · France", code: "MC", surface: "tarmac", offroad: "rock",
+    features: { tunnels: 1.4, bridges: 0.7, fords: 0, fences: 0, logs: 0, bridgeStyle: "stone", tunnelStyle: "rock" },
     blurb: "Alpine hairpins above the Riviera. Dry tarmac, then ice in the shadows. The Col de Turini at night is the most famous stage in rallying.",
     roadW: 7, crowd: 1.0, walls: "stone", barriers: true, houses: 0.6, poles: 0,
     mix: [["tarmac", 6], ["concrete", 1.5], ["gravel", 1]],
@@ -256,6 +258,7 @@ export const LOCATIONS = [
   },
   {
     id: "sweden", name: "Rally Sweden", country: "Värmland · Sweden", code: "SE", surface: "snow", offroad: "deepsnow",
+    features: { tunnels: 0, bridges: 0.8, fords: 0, fences: 0.4, logs: 1.4, bridgeStyle: "timber", frozen: true },
     blurb: "Compacted snow between towering snow banks. Lean on the banks if you must, but the trees behind them are real.",
     roadW: 7.5, crowd: 0.6, walls: "snowbank", barriers: false, houses: 0.3, poles: 0.4,
     mix: [["snow", 7], ["gravel", 1.5]],
@@ -274,6 +277,7 @@ export const LOCATIONS = [
   },
   {
     id: "finland", name: "Rally Finland", country: "Jyväskylä · Finland", code: "FI", surface: "gravel", offroad: "grass",
+    features: { tunnels: 0, bridges: 1, fords: 0.8, fences: 0.6, logs: 1.4, bridgeStyle: "timber" },
     blurb: "Fast, flowing gravel through the lakes and forests. Blind crests send you flying. Commit, or lose a second a kilometre.",
     roadW: 7, crowd: 0.7, walls: null, barriers: false, houses: 0.35, poles: 0.6,
     mix: [["gravel", 7], ["tarmac", 1.2], ["concrete", 0.6]],
@@ -293,6 +297,7 @@ export const LOCATIONS = [
   },
   {
     id: "wales", name: "Wales Rally GB", country: "Mid Wales · United Kingdom", code: "GB", surface: "mud", offroad: "grass",
+    features: { tunnels: 0, bridges: 0.8, fords: 1.8, fences: 1.4, logs: 0.8, bridgeStyle: "stone" },
     blurb: "Slippery forest tracks in the Cambrian mountains. Rain, fog and mud, with drainage ditches waiting on every exit.",
     roadW: 6.5, crowd: 0.5, walls: null, barriers: false, houses: 0.2, poles: 0.4,
     mix: [["mud", 5], ["gravel", 4], ["concrete", 0.8]],
@@ -311,6 +316,7 @@ export const LOCATIONS = [
   },
   {
     id: "portugal", name: "Rally de Portugal", country: "Fafe · Portugal", code: "PT", surface: "gravel", offroad: "scrub",
+    features: { tunnels: 0.3, bridges: 1, fords: 0.8, fences: 0.8, logs: 0, bridgeStyle: "stone", tunnelStyle: "rock" },
     blurb: "Loose gravel through eucalyptus and pine, packed with fans. Fafe's famous jump comes late in the stage, full throttle.",
     roadW: 7, crowd: 1.6, walls: null, barriers: false, houses: 0.4, poles: 0.3,
     mix: [["gravel", 6], ["tarmac", 1.5], ["mud", 1.2]],
@@ -329,6 +335,7 @@ export const LOCATIONS = [
   },
   {
     id: "kenya", name: "Safari Rally", country: "Naivasha · Kenya", code: "KE", surface: "sand", offroad: "scrub",
+    features: { tunnels: 0, bridges: 0.5, fords: 1.8, fences: 0.3, logs: 0, bridgeStyle: "timber", muddy: true },
     blurb: "Red dust, long straights and the Great Rift Valley. The fastest average speeds of the season and soft sand traps off line.",
     roadW: 8, crowd: 0.5, walls: null, barriers: false, houses: 0.15, poles: 0.5,
     mix: [["sand", 6], ["gravel", 2], ["mud", 0.8]],
@@ -347,6 +354,7 @@ export const LOCATIONS = [
   },
   {
     id: "greece", name: "Acropolis Rally", country: "Loutraki · Greece", code: "GR", surface: "gravel", offroad: "rock",
+    features: { tunnels: 0.8, bridges: 0.8, fords: 0.5, fences: 0.4, logs: 0, bridgeStyle: "stone", tunnelStyle: "rock" },
     blurb: "Rough, rocky mountain roads baked white by the sun. Brutal on cars: watch your damage between stages.",
     roadW: 7, crowd: 0.6, walls: null, barriers: false, houses: 0.3, poles: 0.3,
     mix: [["gravel", 7], ["concrete", 1], ["tarmac", 1]],
@@ -365,6 +373,7 @@ export const LOCATIONS = [
   },
   {
     id: "corsica", name: "Tour de Corse", country: "Corsica · France", code: "FR", surface: "tarmac", offroad: "scrub",
+    features: { tunnels: 1.6, bridges: 1, fords: 0, fences: 0.3, logs: 0, bridgeStyle: "stone", tunnelStyle: "concrete" },
     blurb: "The rally of ten thousand corners. Narrow, bumpy tarmac clinging to the cliffs above the Mediterranean.",
     roadW: 6.5, crowd: 0.7, walls: "stone", barriers: true, houses: 0.5, poles: 0.2,
     mix: [["tarmac", 7], ["concrete", 1.5], ["gravel", 0.6]],
@@ -384,6 +393,7 @@ export const LOCATIONS = [
   },
   {
     id: "argentina", name: "Rally Argentina", country: "Córdoba · Argentina", code: "AR", surface: "gravel", offroad: "rock",
+    features: { tunnels: 0.3, bridges: 0.8, fords: 2.2, fences: 0.8, logs: 0, bridgeStyle: "concrete", tunnelStyle: "rock" },
     blurb: "High-altitude gravel across the Traslasierra plateau. Huge skies, water splashes and the El Cóndor descent.",
     roadW: 7.5, crowd: 0.8, walls: null, barriers: false, houses: 0.15, poles: 0.3,
     mix: [["gravel", 6], ["sand", 1.2], ["mud", 1], ["concrete", 0.5]],

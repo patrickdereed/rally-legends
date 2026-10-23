@@ -7,6 +7,9 @@ import { ROAD_SURFACES } from "./data.js";
 export const STEP = 2;            // metres between centreline samples
 export const START_S = 20;        // car start line
 export const FINISH_BACK = 150;   // finish line distance from the end of the road
+export const TUNNEL_APPROACH = 30; // rock cutting walls before and after each tunnel portal
+// Height of the cutting wall `out` metres from a portal (shared with the world so terrain and walls meet).
+export const tunnelCutHeight = out => 0.8 + 11 * Math.pow(1 - clamp(out / TUNNEL_APPROACH, 0, 1), 1.3);
 const DEG = Math.PI / 180;
 
 export function buildStage(loc, stageIdx, opts = {}) {
@@ -168,10 +171,13 @@ export class Stage {
     this.buildElevation(r);
     this.buildIce(r);
     this.buildSurfaces(opts.surface);
+    this.planFeatures();
     this.buildGrid(opts.cell || 6, opts.maxVerts || 420000);
     this.buildWalls(r);
+    this.applyFeatureWalls();
     this.buildNotes(r);
     this.buildScenery(r, opts.density == null ? 1 : opts.density);
+    this.buildDetails(opts.density == null ? 1 : opts.density);
   }
 
   // Terrain height before blending into the road.
@@ -342,6 +348,7 @@ export class Stage {
       const q = sorted[Math.floor(sorted.length * (wt === "sea" ? 0.16 : wt))];
       this.waterY = Math.min(q, this.minRoadY - (wt === "sea" ? 8 : 2.5));
     }
+    this.shapeFeatureTerrain();
   }
 
   gridH(x, z) {
@@ -432,13 +439,15 @@ export class Stage {
     out.i = q.i; out.d = q.d;
     if (ad <= w) {
       out.y = q.y; out.onRoad = true;
-      out.surf = this.ice[q.i] ? "ice" : this.surfAt(q.i);
+      out.surf = this.fordIdx[q.i] ? "ford" : this.ice[q.i] ? "ice" : this.surfAt(q.i);
     } else {
       const gy = this.gridH(x, z);
       out.y = ad < w + 3 ? lerp(q.y, gy, smoothstep(w, w + 3, ad)) : gy;
       out.onRoad = false;
       out.surf = ad < w + 1.6 ? SHOULDER[this.surfAt(q.i)] || "gravel" : this.offroad;
+      if (this.fordIdx[q.i] && ad < w + 3) out.surf = "ford";
       if (this.waterY != null && gy < this.waterY - 0.15) out.surf = "water";
+      if (this.rivers.length) { const lv = this.riverLevelAt(x, z); if (lv != null && gy < lv - 0.15) out.surf = "water"; }
     }
     return out;
   }
@@ -536,6 +545,9 @@ export class Stage {
     for (const c of this.crests) notes.push({ kind: c.h > 2.7 || c.big ? "jump" : "crest", s: c.s - 25, sEnd: c.s, mods: c.big ? ["big"] : [] });
     for (const p of this.icePatches) notes.push({ kind: "ice", s: p[0] - 10, sEnd: p[1], mods: [] });
     for (const sec of this.sections.slice(1)) if (sec.s0 < this.finishS - 20) notes.push({ kind: "surface", s: sec.s0 - 30, sEnd: sec.s0, to: sec.surf, mods: [] });
+    for (const t of this.tunnels) notes.push({ kind: "tunnel", s: t.s0 - 35, sEnd: t.s1, mods: t.s1 - t.s0 > 110 ? ["long"] : [] });
+    for (const b of this.bridges) notes.push({ kind: "bridge", s: b.s0 - 30, sEnd: b.s1, mods: [] });
+    for (const f of this.fords) notes.push({ kind: "water", s: f.s0 - 30, sEnd: f.s1, mods: [] });
     notes.push({ kind: "finish", s: this.finishS, sEnd: this.finishS, mods: [] });
     notes.sort((a, b) => a.s - b.s);
     // Caution after long straights, distances / "into" links, and the occasional "don't cut".
@@ -563,7 +575,7 @@ export class Stage {
     const trees = [], obstacles = [], crowds = [], props = [];
     const q = {};
     const roadDistAt = (x, z) => Math.abs(this.locate(x, z, null, q).d);
-    const underWater = y => this.waterY != null && y < this.waterY + 0.3;
+    const underWater = (y, x, z) => (this.waterY != null && y < this.waterY + 0.3) || (x != null && this.inFeature(x, z));
     const TREE_R = { pine: 0.28, spruce: 0.3, birch: 0.22, broadleaf: 0.4, olive: 0.35, acacia: 0.3, eucalyptus: 0.3, cactus: 0.35, bush: 0, rock: 1 };
 
     for (const v of loc.veg) {
@@ -576,7 +588,7 @@ export class Stage {
         const x = this.x[i] + c0 * side * d + s0 * along, z = this.z[i] - s0 * side * d + c0 * along;
         if (roadDistAt(x, z) < w + v.dmin * 0.75) continue;
         const y = this.gridH(x, z);
-        if (underWater(y)) continue;
+        if (underWater(y, x, z)) continue;
         this.addTree(trees, obstacles, v, x, y, z, r, TREE_R, true);
       }
       const g = this.grid, area = (g.nx * g.cell) * (g.nz * g.cell) / 1e6;
@@ -585,7 +597,7 @@ export class Stage {
         const x = g.x0 + r() * g.cell * (g.nx - 1), z = g.z0 + r() * g.cell * (g.nz - 1);
         if (this.gridRoadDist(x, z) < w + 12) continue;
         const y = this.gridH(x, z);
-        if (underWater(y)) continue;
+        if (underWater(y, x, z)) continue;
         this.addTree(trees, null, v, x, y, z, r, TREE_R, false);
       }
     }
@@ -595,6 +607,7 @@ export class Stage {
     const slow = this.notes.filter(nt => nt.kind === "corner" && (nt.grade === "H" || nt.grade <= 2));
     const jumps = this.notes.filter(nt => nt.kind === "jump");
     for (const j of jumps) zones.push({ s: j.sEnd, side: 0, n: j.mods.includes("big") ? 60 : 22 });
+    for (const f of this.fords) zones.push({ s: f.s1 + 14, side: 0, n: 34 });
     const wantZones = Math.round(L / 1000 * 2.2 * loc.crowd);
     for (let c = 0; c < wantZones && slow.length; c++) {
       const nt = slow[r.int(0, slow.length - 1)];
@@ -612,7 +625,7 @@ export class Stage {
           const x = p.x + Math.cos(p.h) * side * d, z = p.z - Math.sin(p.h) * side * d;
           if (roadDistAt(x, z) < w + 5.5) continue;
           const y = this.gridH(x, z);
-          if (underWater(y)) continue;
+          if (underWater(y, x, z)) continue;
           crowds.push({ x, y, z, rot: p.h + (side > 0 ? -Math.PI / 2 : Math.PI / 2) + r.range(-0.5, 0.5), shirt: r.int(0, 11), flag: r.chance(0.12), flare: r.chance(0.08), h: r.range(0.92, 1.08), ph: r() * TAU });
         }
         // Tape line between the crowd and the road.
@@ -666,7 +679,7 @@ export class Stage {
         const hw = r.range(3, 4.6), hd = r.range(3.5, 5);
         if (roadDistAt(x, z) < w + Math.max(hw, hd) + 3) continue;
         const y = this.gridH(x, z);
-        if (underWater(y)) continue;
+        if (underWater(y, x, z)) continue;
         props.push({ type: "house", x, y, z, rot: p.h + (r.chance(0.5) ? 0 : Math.PI / 2), w: hw, d: hd, ht: r.range(3.2, 5.5), tint: r() });
         obstacles.push({ x, z, r: Math.max(hw, hd) * 0.95, kind: "house" });
       }
@@ -681,7 +694,7 @@ export class Stage {
           const x = p.x + Math.cos(p.h) * side * d, z = p.z - Math.sin(p.h) * side * d;
           if (roadDistAt(x, z) < w + 4.5) { run.length = 0; continue; }
           const y = this.gridH(x, z);
-          if (underWater(y)) continue;
+          if (underWater(y, x, z)) continue;
           run.push({ type: "pole", x, y, z, rot: p.h });
           obstacles.push({ x, z, r: 0.2, kind: "pole" });
         }
@@ -710,6 +723,231 @@ export class Stage {
       if (!a) { a = []; this.obsHash.set(kk, a); }
       a.push(idx);
     });
+  }
+
+  // ---------- Stage features: tunnels, bridges over rivers, water splashes ----------
+  // Placed with their own RNG once the road is final, so the road (and every record and ghost on it)
+  // never changes; only the terrain, walls and scenery around it do.
+  planFeatures() {
+    const F = this.loc.features || {}, rf = makeRng(this.seed ^ 0x7e117e11), n = this.n, w = this.w;
+    this.tunnels = []; this.bridges = []; this.fords = []; this.rivers = [];
+    this.fordIdx = new Uint8Array(n);
+    const busy = [];
+    const free = (a, b) => a > 220 && b < this.finishS - 160 && !busy.some(([x, y]) => a < y + 130 && b > x - 130)
+      && !this.crests.some(c => c.s > a - 80 && c.s < b + 50) && !this.icePatches.some(([x, y]) => a < y + 30 && b > x - 30);
+    const count = v => Math.floor(v) + (rf() < v % 1 ? 1 : 0);
+    const kMax = (s0, s1) => { let m = 0; for (let i = Math.max(0, Math.floor(s0 / STEP)); i <= Math.min(n - 1, Math.ceil(s1 / STEP)); i++) m = Math.max(m, Math.abs(this.k[i])); return m; };
+    const sideRise = (s, d) => { const p = this.pointAt(s); let lo = Infinity; for (const side of [1, -1]) lo = Math.min(lo, this.baseHeight(p.x + Math.cos(p.h) * side * d, p.z - Math.sin(p.h) * side * d) - p.y); return lo; };
+    // Tunnels go through the highest ground the road passes, on gentle curves.
+    for (let t = count(F.tunnels || 0); t > 0; t--) {
+      let best = null;
+      for (let tries = 0; tries < 90; tries++) {
+        const len = rf.range(55, 150), s0 = rf.range(260, this.finishS - 260 - len), s1 = s0 + len;
+        if (!free(s0 - 60, s1 + 60) || kMax(s0 - 25, s1 + 25) > 1 / 28) continue;
+        let score = 0; for (let k = 0; k <= 4; k++) score += sideRise(s0 + len * k / 4, 22);
+        score = score / 5 + rf() * 4;
+        if (!best || score > best.score) best = { s0, s1, score };
+      }
+      if (best) { this.tunnels.push({ s0: best.s0, s1: best.s1, style: F.tunnelStyle || "rock" }); busy.push([best.s0, best.s1]); }
+    }
+    // Rivers cross the road on straight-ish sections in low ground: deep under a bridge, or shallow over the road.
+    const crossing = bridge => {
+      let best = null;
+      for (let tries = 0; tries < 70; tries++) {
+        const s = rf.range(280, this.finishS - 240), half = bridge ? rf.range(9, 15) : rf.range(5, 8);
+        if (!free(s - half - 35, s + half + 35) || kMax(s - half - 25, s + half + 25) > 1 / 110) continue;
+        const score = -sideRise(s, 26) + rf() * 3;
+        if (!best || score > best.score) best = { s, half, score };
+      }
+      return best;
+    };
+    for (let t = count(F.bridges || 0); t > 0; t--) {
+      const c = crossing(true); if (!c) continue;
+      busy.push([c.s - c.half, c.s + c.half]);
+      const p = this.pointAt(c.s), depth = rf.range(4.5, 7.5);
+      const b = { s: c.s, half: c.half, s0: c.s - c.half - 6, s1: c.s + c.half + 6, y: p.y, bed: p.y - depth, level: p.y - depth + rf.range(1.0, 1.7), style: F.bridgeStyle || "stone", frozen: !!F.frozen };
+      this.bridges.push(b);
+      this.rivers.push(this.riverPath(rf, c.s, c.half - 2.5, b.bed, b.level, { frozen: !!F.frozen }));
+    }
+    for (let t = count(F.fords || 0); t > 0; t--) {
+      const c = crossing(false); if (!c) continue;
+      busy.push([c.s - c.half, c.s + c.half]);
+      const p = this.pointAt(c.s);
+      const f = { s: c.s, half: c.half, s0: c.s - c.half, s1: c.s + c.half, y: p.y, level: p.y + 0.16, muddy: !!F.muddy };
+      this.fords.push(f);
+      for (let i = Math.floor(f.s0 / STEP); i <= Math.ceil(f.s1 / STEP); i++) this.fordIdx[clamp(i, 0, n - 1)] = 1;
+      this.rivers.push(this.riverPath(rf, c.s, c.half, p.y - 0.9, f.level, { ford: true, muddy: !!F.muddy }));
+    }
+  }
+
+  // A river: a meandering line crossing the road at s, roughly square to it, cut short where it would
+  // reach another leg of the road.
+  riverPath(rf, s, halfW, bed, level, o = {}) {
+    const p = this.pointAt(s), nxv = Math.cos(p.h), nzv = -Math.sin(p.h), tx = Math.sin(p.h), tz = Math.cos(p.h);
+    const ph = rf() * 10, bend = rf.range(-0.25, 0.25), ic = p.i, q = {};
+    const half = [];
+    for (const dir of [-1, 1]) {
+      const pts = [];
+      for (let u = 0; u <= 190; u += 7) {
+        const along = bend * u * u / 190 * dir + Math.sin(u * 0.035 + ph) * 5 * Math.min(1, u / 40);
+        const x = p.x + nxv * u * dir + tx * along, z = p.z + nzv * u * dir + tz * along;
+        if (u > this.w + 20) {
+          const l = this.locate(x, z, null, q);
+          if (Math.abs(l.i - ic) * STEP > halfW + 40 && Math.abs(l.d) < this.w + halfW + 14) break;
+        }
+        pts.push([x, z]);
+      }
+      half.push(pts);
+    }
+    const pts = half[0].reverse().concat(half[1].slice(1));
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const [x, z] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    const pad = halfW + 10;
+    return { pts, halfW, bed, level, s, frozen: !!o.frozen, ford: !!o.ford, muddy: !!o.muddy, box: [x0 - pad, x1 + pad, z0 - pad, z1 + pad] };
+  }
+  riverDist(rv, x, z) {
+    let best = Infinity;
+    const P = rv.pts;
+    for (let k = 0; k < P.length - 1; k++) {
+      const ax = P[k][0], az = P[k][1], ux = P[k + 1][0] - ax, uz = P[k + 1][1] - az;
+      const t = clamp(((x - ax) * ux + (z - az) * uz) / (ux * ux + uz * uz || 1), 0, 1);
+      const dx = ax + ux * t - x, dz = az + uz * t - z, d = dx * dx + dz * dz;
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best);
+  }
+  riverLevelAt(x, z) {
+    for (const rv of this.rivers) {
+      const b = rv.box;
+      if (x < b[0] || x > b[1] || z < b[2] || z > b[3]) continue;
+      if (this.riverDist(rv, x, z) < rv.halfW + 1.5) return rv.level;
+    }
+    return null;
+  }
+  // True inside a river's banks or a tunnel mound: keep trees, houses and spectators out.
+  inFeature(x, z) {
+    for (const rv of this.rivers) {
+      const b = rv.box;
+      if (x < b[0] || x > b[1] || z < b[2] || z > b[3]) continue;
+      if (this.riverDist(rv, x, z) < rv.halfW + 4) return true;
+    }
+    for (const t of this.tunnels) {
+      const a = this.pointAt((t.s0 + t.s1) / 2), half = (t.s1 - t.s0) / 2 + 20;
+      if (Math.hypot(x - a.x, z - a.z) < half && this.gridRoadDist(x, z) < this.w + 9) return true;
+    }
+    return false;
+  }
+
+  // Carve river channels and raise hills over tunnels in the terrain grid. Marks grid vertices the
+  // tunnel tube replaces (world skips those terrain quads so the road isn't roofed over).
+  shapeFeatureTerrain() {
+    const g = this.grid, w = this.w, N = g.nx * g.nz;
+    g.cover = new Uint8Array(N);
+    const each = (box, fn) => {
+      const gx0 = Math.max(0, Math.floor((box[0] - g.x0) / g.cell)), gx1 = Math.min(g.nx - 1, Math.ceil((box[1] - g.x0) / g.cell));
+      const gz0 = Math.max(0, Math.floor((box[2] - g.z0) / g.cell)), gz1 = Math.min(g.nz - 1, Math.ceil((box[3] - g.z0) / g.cell));
+      for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) fn(gz * g.nx + gx, g.x0 + gx * g.cell, g.z0 + gz * g.cell);
+    };
+    for (const rv of this.rivers) {
+      each(rv.box, (v, x, z) => {
+        const d = this.riverDist(rv, x, z);
+        if (d > rv.halfW + 8) return;
+        const near = g.d[v] < w + 1.5; // under the road: a ford keeps the road bed, a bridge spans the gorge
+        if (near && rv.ford) return;
+        g.h[v] = Math.min(g.h[v], lerp(rv.bed, g.h[v], smoothstep(rv.halfW * 0.55, rv.halfW + 8, d)));
+      });
+    }
+    for (const t of this.tunnels) {
+      const i0 = Math.floor((t.s0 - 60) / STEP), i1 = Math.ceil((t.s1 + 60) / STEP);
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (let i = i0; i <= i1; i++) { const j = clamp(i, 0, this.n - 1); x0 = Math.min(x0, this.x[j]); x1 = Math.max(x1, this.x[j]); z0 = Math.min(z0, this.z[j]); z1 = Math.max(z1, this.z[j]); }
+      const q = {};
+      each([x0 - 90, x1 + 90, z0 - 90, z1 + 90], (v, x, z) => {
+        const l = this.locate(x, z, null, q);
+        const sp = l.s, dRoad = Math.abs(l.d);
+        if (sp < t.s0 - 60 || sp > t.s1 + 60) return;
+        const out = sp < t.s0 ? t.s0 - sp : sp > t.s1 ? sp - t.s1 : 0;
+        const fa = 1 - smoothstep(0, 55, out);
+        const core = out === 0;
+        if (core && dRoad < w + 2.2) {
+          // Behind the portals the terrain is left out (the headwall hides the gap); deeper in, the hillside
+          // closes over the tube.
+          if (sp < t.s0 + 10 || sp > t.s1 - 10) { g.cover[v] = 1; g.h[v] = Math.min(g.h[v], l.y - 0.3); }
+          else g.h[v] = Math.max(g.h[v], l.y + 7.6);
+          return;
+        }
+        if (core) {
+          // over and beside the tube
+          const rise = smoothstep(w + 2.2, w + 7, dRoad);
+          const target = l.y + 8.5 + 10 * (1 - smoothstep(12, 85, dRoad));
+          g.h[v] = Math.max(g.h[v], lerp(l.y - 0.3, target, rise));
+          return;
+        }
+        // In the approach cutting the rock walls (drawn by the world) form the faces; the hillside starts
+        // behind their top edge so the coarse grid never hangs over the road.
+        const H = tunnelCutHeight(out), dTop = w + 1 + 0.9 * H + 2;
+        const rise = smoothstep(dTop - 1, dTop + 8, dRoad);
+        const target = l.y + H + 1.5 + 9 * (1 - smoothstep(dTop, 85, dRoad));
+        g.h[v] = Math.max(g.h[v], lerp(g.h[v], target, rise * fa));
+      });
+    }
+  }
+
+  // Tunnel walls (kind 4) and bridge parapets (kind 5) for collision; the world draws their geometry.
+  applyFeatureWalls() {
+    const fill = (a, b, v) => { for (let i = Math.max(0, Math.floor(a / STEP)); i <= Math.min(this.n - 1, Math.ceil(b / STEP)); i++) { this.wallL[i] = v; this.wallR[i] = v; } };
+    for (const t of this.tunnels) fill(t.s0 - TUNNEL_APPROACH, t.s1 + TUNNEL_APPROACH, 4); // tube plus the rock cutting either side
+    for (const b of this.bridges) fill(b.s0, b.s1, 5);
+  }
+
+  // Extra roadside detail (own RNG, after everything else): warning signs before slow corners, the yellow
+  // board before the finish, field fences and log piles.
+  buildDetails(density) {
+    const F = this.loc.features || {}, rd = makeRng(this.seed ^ 0x2d37a1), w = this.w, q = {};
+    const props = this.props, obstacles = this.obstacles;
+    const clearAt = (x, z, min) => Math.abs(this.locate(x, z, null, q).d) >= min && !this.inFeature(x, z);
+    const inFeatureS = s => [...this.tunnels, ...this.bridges, ...this.fords].some(f => s > f.s0 - 25 && s < f.s1 + 25);
+    for (const nt of this.notes) {
+      if (nt.kind !== "corner" || !(nt.grade === "H" || nt.grade === 1 || nt.mods.includes("caution"))) continue;
+      const s = nt.s - 55;
+      if (s < this.startS + 30 || inFeatureS(s)) continue;
+      const p = this.pointAt(s), side = -1, d = w + 2.6;
+      const x = p.x + Math.cos(p.h) * side * d, z = p.z - Math.sin(p.h) * side * d;
+      if (!clearAt(x, z, w + 2)) continue;
+      props.push({ type: "warnsign", x, y: this.gridH(x, z), z, rot: p.h, dir: nt.dir, hairpin: nt.grade === "H" }); // visual only
+    }
+    { const p = this.pointAt(this.finishS - 100), d = w + 2.2;
+      for (const side of [1, -1]) { const x = p.x + Math.cos(p.h) * side * d, z = p.z - Math.sin(p.h) * side * d; props.push({ type: "yellowboard", x, y: this.gridH(x, z), z, rot: p.h }); } }
+    const fences = Math.round(this.L / 1000 * (F.fences || 0) * 2.2);
+    for (let f = 0; f < fences; f++) {
+      const s0 = rd.range(150, this.finishS - 250), len = rd.range(50, 170), side = rd.chance(0.5) ? 1 : -1, d = w + rd.range(4.5, 7);
+      const posts = [];
+      for (let s = s0; s < s0 + len; s += 2.6) {
+        const p = this.pointAt(s), x = p.x + Math.cos(p.h) * side * d, z = p.z - Math.sin(p.h) * side * d;
+        if (inFeatureS(s) || !clearAt(x, z, w + 3.5)) { if (posts.length > 3) props.push({ type: "fence", posts: posts.slice() }); posts.length = 0; continue; }
+        posts.push([x, this.gridH(x, z), z, p.h]);
+      }
+      if (posts.length > 3) props.push({ type: "fence", posts });
+    }
+    const logs = Math.round(this.L / 1000 * (F.logs || 0) * density);
+    for (let k = 0; k < logs; k++) {
+      const s = rd.range(150, this.finishS - 150), side = rd.chance(0.5) ? 1 : -1, d = w + rd.range(9, 14);
+      if (inFeatureS(s)) continue;
+      const p = this.pointAt(s), x = p.x + Math.cos(p.h) * side * d, z = p.z - Math.sin(p.h) * side * d;
+      if (!clearAt(x, z, w + 8)) continue;
+      props.push({ type: "logs", x, y: this.gridH(x, z), z, rot: p.h + rd.range(-0.1, 0.1), len: rd.range(4, 6) });
+      obstacles.push({ x, z, r: 1.5, kind: "rock" });
+    }
+    // the obstacle hash was built in buildScenery; add the new ones
+    for (let idx = 0; idx < obstacles.length; idx++) {
+      const o = obstacles[idx];
+      if (o._h) continue;
+      o._h = 1;
+      const kk = this.hkey(Math.floor(o.x / this.obsCell), Math.floor(o.z / this.obsCell));
+      let a = this.obsHash.get(kk);
+      if (!a) { a = []; this.obsHash.set(kk, a); }
+      if (!a.includes(idx)) a.push(idx);
+    }
   }
 
   addTree(trees, obstacles, v, x, y, z, r, TREE_R, near) {
@@ -747,6 +985,9 @@ export function noteText(nt) {
   else if (nt.kind === "jump") parts.push(nt.mods.includes("big") ? "big jump, flat out" : "jump");
   else if (nt.kind === "ice") parts.push("caution, ice");
   else if (nt.kind === "surface") parts.push("onto " + nt.to);
+  else if (nt.kind === "tunnel") parts.push(nt.mods.includes("long") ? "into long tunnel" : "into tunnel");
+  else if (nt.kind === "bridge") parts.push("over bridge, narrows");
+  else if (nt.kind === "water") parts.push("water splash");
   else if (nt.kind === "finish") parts.push("flat to finish");
   if (nt.link === "into") parts.push("into");
   else if (nt.link === "and") parts.push("and");

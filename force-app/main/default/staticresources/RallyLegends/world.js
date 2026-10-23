@@ -1,7 +1,7 @@
 // Stage scenery: sky, lighting, terrain, road, roadside walls, vegetation, crowds and props.
 import * as THREE from "./three.module.min.js";
 import { makeRng, makeNoise, clamp, lerp, smoothstep, TAU } from "./util.js";
-import { STEP } from "./track.js";
+import { STEP, TUNNEL_APPROACH, tunnelCutHeight } from "./track.js";
 
 export const QUALITY = {
   low: { pr: 0.75, shadow: 0, cell: 9, trees: 0.3, grass: 0, draw: 650, aa: false, far: 1 },
@@ -379,7 +379,9 @@ export class World {
     this.buildProps();
     this.buildCrowd();
     this.buildWater();
+    this.buildFeatures();
     this.buildMountains();
+    this.dark = 0; this._camHint = null;
   }
 
   buildEnvironment() {
@@ -436,8 +438,10 @@ export class World {
       }
       const idx = new Uint32Array(w * h * 6);
       let o = 0;
+      const cover = g.cover;
       for (let iz = 0; iz < h; iz++) for (let ix = 0; ix < w; ix++) {
         const a = iz * (w + 1) + ix, b = a + 1, c = a + w + 1, d = c + 1;
+        if (cover) { const gv = (cz + iz) * nx + cx + ix; if (cover[gv] || cover[gv + 1] || cover[gv + nx] || cover[gv + nx + 1]) continue; }
         idx[o++] = a; idx[o++] = c; idx[o++] = b; idx[o++] = b; idx[o++] = c; idx[o++] = d;
       }
       const geo = new THREE.BufferGeometry();
@@ -445,7 +449,7 @@ export class World {
       geo.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
       geo.setAttribute("color", new THREE.BufferAttribute(clr, 3));
       geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-      geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      geo.setIndex(new THREE.BufferAttribute(o < idx.length ? idx.slice(0, o) : idx, 1));
       geo.computeBoundingSphere();
       const mesh = new THREE.Mesh(geo, this.terrainMat);
       mesh.receiveShadow = true;
@@ -572,6 +576,7 @@ export class World {
         if (!kind) { i++; continue; }
         let j = i;
         while (j < st.n && arr[j] === kind) j++;
+        if (!profiles[kind]) { i = j; continue; }
         const prof = profiles[kind], pos = [], uv = [], idx = [], per = prof.pts.length;
         for (let q = i; q < j; q++) {
           const c = Math.cos(st.h[q]), s = Math.sin(st.h[q]);
@@ -797,6 +802,77 @@ export class World {
       const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(wirePts, 3));
       scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x222222 })));
     }
+    // warning signs before slow corners: red-bordered triangle with a bend arrow
+    const signTex = {};
+    const warnTex = (dir, hp) => signTex[dir + hp] || (signTex[dir + hp] = (() => {
+      const cv = document.createElement("canvas"); cv.width = cv.height = 128; const x = cv.getContext("2d");
+      x.fillStyle = "#c8141c"; x.beginPath(); x.moveTo(64, 6); x.lineTo(124, 116); x.lineTo(4, 116); x.closePath(); x.fill();
+      x.fillStyle = "#f6f4ee"; x.beginPath(); x.moveTo(64, 26); x.lineTo(108, 106); x.lineTo(20, 106); x.closePath(); x.fill();
+      x.strokeStyle = "#111"; x.lineWidth = 7; x.lineCap = "round"; x.beginPath();
+      const m = dir === "L" ? -1 : 1;
+      if (hp) { x.moveTo(64 - m * 12, 98); x.lineTo(64 - m * 12, 62); x.arc(64, 62, 12, Math.PI, 0, dir === "L"); x.lineTo(64 + m * 12, 78); }
+      else { x.moveTo(64 - m * 10, 98); x.quadraticCurveTo(64 - m * 10, 60, 64 + m * 14, 54); }
+      x.stroke();
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })());
+    const sPole = new THREE.CylinderGeometry(0.04, 0.04, 2.0, 6); sPole.translate(0, 1.0, 0);
+    const signG = new THREE.PlaneGeometry(0.95, 0.95); signG.translate(0, 2.25, 0); signG.rotateY(Math.PI);
+    const greyPole = new THREE.MeshStandardMaterial({ color: 0x9a9ea3, metalness: 0.5, roughness: 0.5 });
+    const signs = of("warnsign");
+    inst(sPole, greyPole, signs);
+    for (const key of ["L0", "R0", "L1", "R1"]) {
+      const list = signs.filter(o => o.dir === key[0] && (o.hairpin ? 1 : 0) === +key[1]);
+      inst(signG, new THREE.MeshStandardMaterial({ map: warnTex(key[0], +key[1]), roughness: 0.5, side: THREE.DoubleSide, alphaTest: 0.5, transparent: false }), list);
+    }
+    // yellow time-control board 100 m before the finish
+    const yb = of("yellowboard");
+    if (yb.length) {
+      const ybTex = textCanvasTex([["⏱", 70, 66]], 128, 128, "#f2c400", "#111111");
+      const ybG = new THREE.PlaneGeometry(0.9, 0.9); ybG.translate(0, 1.9, 0); ybG.rotateY(Math.PI);
+      inst(sPole, greyPole, yb); inst(ybG, new THREE.MeshStandardMaterial({ map: ybTex, side: THREE.DoubleSide, roughness: 0.6 }), yb);
+    }
+    // post-and-rail fences
+    const fences = of("fence");
+    if (fences.length) {
+      const woodC = this.loc.id === "kenya" ? 0x6b5338 : 0x7a6449;
+      const woodM = new THREE.MeshStandardMaterial({ color: woodC, roughness: 0.95, map: terrainDetail().map });
+      const allPosts = [];
+      const rails = [], ridx = [];
+      for (const f of fences) {
+        allPosts.push(...f.posts.map(([x, y, z, h]) => ({ x, y, z, rot: h })));
+        for (const ry of [0.55, 1.0]) {
+          const base = rails.length / 3;
+          f.posts.forEach(([x, y, z, h], i) => {
+            const nx = Math.cos(h) * 0.025, nz = -Math.sin(h) * 0.025;
+            rails.push(x - nx, y + ry - 0.06, z - nz, x + nx, y + ry + 0.06, z + nz);
+            if (i) { const a = base + (i - 1) * 2; ridx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+          });
+        }
+      }
+      const fp = new THREE.BoxGeometry(0.11, 1.25, 0.11); fp.translate(0, 0.55, 0);
+      inst(fp, woodM, allPosts);
+      const rg = new THREE.BufferGeometry(); rg.setAttribute("position", new THREE.Float32BufferAttribute(rails, 3)); rg.setIndex(ridx); rg.computeVertexNormals();
+      const rm = new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ color: woodC, roughness: 0.95, side: THREE.DoubleSide })); rm.castShadow = true;
+      scene.add(rm);
+    }
+    // log piles: a pyramid of cut trunks with pale end grain
+    const logPiles = of("logs");
+    if (logPiles.length) {
+      const logs = [];
+      for (const o of logPiles) {
+        const rows = [[4, 0], [3, 1], [2, 2]];
+        for (const [count, row] of rows) for (let k = 0; k < count; k++) {
+          const off = (k - (count - 1) / 2) * 0.42, yy = 0.21 + row * 0.36;
+          logs.push({ x: o.x + Math.cos(o.rot) * off, y: o.y + yy, z: o.z - Math.sin(o.rot) * off, rot: o.rot, len: o.len });
+        }
+      }
+      const lg = new THREE.CylinderGeometry(0.2, 0.2, 1, 10); lg.rotateX(Math.PI / 2);
+      const ends = new THREE.MeshStandardMaterial({ color: 0xd9b98a, roughness: 0.9 }), bark = new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 1, map: terrainDetail().map });
+      const im = new THREE.InstancedMesh(lg, [bark, ends, ends], logs.length);
+      logs.forEach((o, i) => { q.setFromAxisAngle(up, o.rot); im.setMatrixAt(i, m4.compose(p.set(o.x, o.y, o.z), q, new THREE.Vector3(1, 1, o.len))); });
+      im.castShadow = true; im.receiveShadow = true; im.computeBoundingSphere();
+      scene.add(im);
+    }
     // start / finish arches and the stop board
     const rallyName = this.loc.name.toUpperCase();
     for (const o of props.filter(o => o.type === "startArch" || o.type === "finishArch" || o.type === "stopBoard")) {
@@ -898,6 +974,189 @@ export class World {
     this.scene.add(water);
   }
 
+  // Tunnels, bridges and rivers placed by the stage generator.
+  buildFeatures() {
+    const st = this.stage, w = st.w, scene = this.scene;
+    // ribbon along the road: cross-section points [d, y] swept from s0 to s1
+    const sweep = (s0, s1, profIn, mat, { closed = false, uScale = 3 } = {}) => {
+      const i0 = Math.max(0, Math.floor(s0 / STEP)), i1 = Math.min(st.n - 1, Math.ceil(s1 / STEP));
+      const profAt = typeof profIn === "function" ? profIn : () => profIn;
+      const pos = [], uv = [], idx = [], per = profAt(i0 * STEP).length;
+      let along = 0;
+      for (let i = i0; i <= i1; i++) {
+        const c = Math.cos(st.h[i]), sn = Math.sin(st.h[i]), prof = profAt(i * STEP);
+        let acc = 0;
+        prof.forEach(([d, y], k) => {
+          if (k) acc += Math.hypot(d - prof[k - 1][0], y - prof[k - 1][1]);
+          pos.push(st.x[i] + c * d, st.y[i] + y, st.z[i] - sn * d); uv.push(acc / uScale, along / uScale);
+        });
+        along += STEP;
+      }
+      for (let r = 0; r < i1 - i0; r++) for (let k = 0; k < per - 1 + (closed ? 1 : 0); k++) {
+        const k2 = (k + 1) % per, a = r * per + k, b = r * per + k2, cc = a + per, d = b + per;
+        idx.push(a, cc, b, b, cc, d);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+      geo.setIndex(idx); geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true;
+      scene.add(m); this.disposables.push(geo);
+      return m;
+    };
+    const rockTex = canvasTex(256, (d, sz) => { const h = tileNoise(sz, [8, 16, 32, 64], 31); for (let i = 0; i < sz * sz; i++) { const v = 95 + h[i] * 110; d[i * 4] = v; d[i * 4 + 1] = v * 0.97; d[i * 4 + 2] = v * 0.93; d[i * 4 + 3] = 255; } });
+    const concTex = canvasTex(256, (d, sz) => { const h = tileNoise(sz, [16, 64], 33); for (let i = 0; i < sz * sz; i++) { const y = Math.floor(i / sz), x = i % sz; const seam = (x % 128 < 2) || (y % 64 < 2); const v = seam ? 120 : 175 + h[i] * 40; d[i * 4] = v; d[i * 4 + 1] = v; d[i * 4 + 2] = v * 0.97; d[i * 4 + 3] = 255; } });
+    const rockCol = C(this.loc.pal.rock);
+    // ---- tunnels ----
+    for (const t of st.tunnels) {
+      const concrete = t.style === "concrete";
+      const R = w + 1.0, wallH = 4.0, archH = 2.6, prof = [];
+      prof.push([-R - 0.3, -0.4], [-R, -0.05], [-R, wallH]);
+      for (let k = 1; k < 10; k++) { const a = Math.PI - k / 10 * Math.PI; prof.push([Math.cos(a) * R, wallH + Math.sin(a) * archH]); }
+      prof.push([R, wallH], [R, -0.05], [R + 0.3, -0.4]);
+      const inner = new THREE.MeshStandardMaterial({ map: concrete ? concTex : rockTex, color: concrete ? C("#b9b7b1") : rockCol.clone().lerp(C("#ffffff"), 0.1), roughness: 0.95, side: THREE.DoubleSide });
+      sweep(t.s0 - 0.5, t.s1 + 0.5, prof, inner);
+      // a painted kerb line along both walls
+      sweep(t.s0, t.s1, [[-R + 0.02, 0.0], [-R + 0.02, 0.9]], new THREE.MeshStandardMaterial({ color: 0xf0e9d2, roughness: 0.7, side: THREE.DoubleSide }));
+      sweep(t.s0, t.s1, [[R - 0.02, 0.9], [R - 0.02, 0.0]], new THREE.MeshStandardMaterial({ color: 0xf0e9d2, roughness: 0.7, side: THREE.DoubleSide }));
+      // rock cutting either side of the road, tallest at the portal and tapering away from it
+      const cutMat = new THREE.MeshStandardMaterial({ map: rockTex, color: rockCol, roughness: 0.96, side: THREE.DoubleSide });
+      for (const [a, b, portal] of [[t.s0 - TUNNEL_APPROACH, t.s0 + 0.5, t.s0], [t.s1 - 0.5, t.s1 + TUNNEL_APPROACH, t.s1]]) {
+        for (const side of [1, -1]) {
+          sweep(a, b, sp => {
+            const H = tunnelCutHeight(Math.abs(sp - portal));
+            const top = R + H * 0.9 + 2;
+            const pts = [[R, -0.4], [R, H * 0.55], [R + H * 0.18, H * 0.85], [R + H * 0.35, H], [top, H + 1.5], [top + 1, -6]]; // closed back: solid rock, not a sheet
+            return side > 0 ? pts : pts.map(([d, y]) => [-d, y]).reverse();
+          }, cutMat);
+        }
+      }
+      // rocky crest over the tube just behind each headwall, where the hillside is left open
+      for (const [a, b] of [[t.s0 - 0.5, Math.min(t.s1, t.s0 + 14)], [Math.max(t.s0, t.s1 - 14), t.s1 + 0.5]]) {
+        sweep(a, b, [[-(R + 13), wallH + 2], [-(R + 5), wallH + archH + 1.6], [0, wallH + archH + 2.4], [R + 5, wallH + archH + 1.6], [R + 13, wallH + 2]], new THREE.MeshStandardMaterial({ map: rockTex, color: rockCol, roughness: 0.96, side: THREE.DoubleSide }));
+      }
+      // lamps along both upper walls
+      const lamps = [];
+      for (let s = t.s0 + 5; s < t.s1 - 2; s += 9) for (const side of [1, -1]) {
+        const pnt = st.pointAt(s), d = side * (R - 0.12), a = Math.asin(Math.min(1, (R - 0.25) / R));
+        lamps.push({ x: pnt.x + Math.cos(pnt.h) * d, y: pnt.y + wallH + Math.cos(a) * archH * 0.55, z: pnt.z - Math.sin(pnt.h) * d, rot: pnt.h });
+      }
+      const lg = new THREE.BoxGeometry(0.12, 0.14, 1.1);
+      const im = new THREE.InstancedMesh(lg, new THREE.MeshBasicMaterial({ color: concrete ? 0xfff2d6 : 0xffd38a }), lamps.length);
+      const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), pv = new THREE.Vector3();
+      lamps.forEach((o, i) => im.setMatrixAt(i, m4.compose(pv.set(o.x, o.y, o.z), qq.setFromAxisAngle(up, o.rot), one)));
+      im.computeBoundingSphere(); scene.add(im);
+      // portal faces with an arched opening, one at each end
+      for (const [sp, dir] of [[t.s0, -1], [t.s1, 1]]) {
+        const pnt = st.pointAt(sp), shape = new THREE.Shape();
+        const W2 = R + 13, top = wallH + archH + 7.5;
+        shape.moveTo(-W2, -3); shape.lineTo(W2, -3); shape.lineTo(W2 - 2, top - 1); shape.lineTo(W2 * 0.4, top + 1.5); shape.lineTo(-W2 * 0.5, top + 0.5); shape.lineTo(-W2 + 1.5, top - 2); shape.lineTo(-W2, -3);
+        const hole = new THREE.Path();
+        hole.moveTo(-R, -0.1); hole.lineTo(R, -0.1); hole.lineTo(R, wallH);
+        for (let k = 1; k < 16; k++) { const a = k / 16 * Math.PI; hole.lineTo(Math.cos(a) * R, wallH + Math.sin(a) * archH); }
+        hole.lineTo(-R, wallH); hole.lineTo(-R, -0.1);
+        shape.holes.push(hole);
+        const geo = new THREE.ExtrudeGeometry(shape, { depth: 1.6, bevelEnabled: false });
+        geo.translate(0, 0, dir > 0 ? -1.6 : 0);
+        const face = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: concrete ? concTex : rockTex, color: concrete ? C("#c9c5bc") : rockCol, roughness: 0.95 }));
+        face.position.set(pnt.x, pnt.y, pnt.z); face.rotation.y = pnt.h;
+        face.castShadow = true; face.receiveShadow = true; scene.add(face); this.disposables.push(geo);
+      }
+    }
+    // ---- bridges ----
+    for (const b of st.bridges) {
+      const stone = b.style === "stone", timber = b.style === "timber";
+      const deckMat = new THREE.MeshStandardMaterial({ map: stone ? rockTex : concTex, color: stone ? rockCol.clone().lerp(C("#d8cdb8"), 0.4) : timber ? C("#7a6449") : C("#bdbab3"), roughness: 0.9 });
+      const W = w + 1.7;
+      sweep(b.s0, b.s1, [[-W, -0.02], [-W, -1.2], [W, -1.2], [W, -0.02]], deckMat);
+      if (stone || b.style === "concrete") {
+        const wallM = new THREE.MeshStandardMaterial({ map: stone ? rockTex : concTex, color: stone ? rockCol.clone().lerp(C("#e2d6c0"), 0.35) : C("#c8c5be"), roughness: 0.92 });
+        for (const side of [1, -1]) sweep(b.s0, b.s1, side > 0 ? [[w + 1.0, -0.05], [w + 1.0, 0.95], [w + 1.7, 0.95], [w + 1.7, -1.2]] : [[-w - 1.7, -1.2], [-w - 1.7, 0.95], [-w - 1.0, 0.95], [-w - 1.0, -0.05]], wallM);
+        if (b.style === "concrete") for (const side of [1, -1]) sweep(b.s0, b.s1, [[side * (w + 1.35), 1.05], [side * (w + 1.35), 1.15]], new THREE.MeshStandardMaterial({ color: 0xa9adb2, metalness: 0.7, roughness: 0.4 }));
+      } else {
+        // timber: posts and two rails each side
+        const posts = [];
+        for (let s = b.s0; s <= b.s1; s += 2) for (const side of [1, -1]) { const pnt = st.pointAt(s), d = side * (w + 1.2); posts.push({ x: pnt.x + Math.cos(pnt.h) * d, y: pnt.y, z: pnt.z - Math.sin(pnt.h) * d, rot: pnt.h }); }
+        const pg = new THREE.BoxGeometry(0.18, 1.1, 0.18); pg.translate(0, 0.5, 0);
+        const im = new THREE.InstancedMesh(pg, deckMat, posts.length), m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), pv = new THREE.Vector3();
+        posts.forEach((o, i) => im.setMatrixAt(i, m4.compose(pv.set(o.x, o.y, o.z), qq.setFromAxisAngle(up, o.rot), one)));
+        im.castShadow = true; im.computeBoundingSphere(); scene.add(im);
+        for (const side of [1, -1]) for (const ry of [0.55, 0.98]) sweep(b.s0, b.s1, [[side * (w + 1.2), ry - 0.07], [side * (w + 1.2), ry + 0.07]], new THREE.MeshStandardMaterial({ color: 0x6d5840, roughness: 0.95, side: THREE.DoubleSide }));
+      }
+      // piers down to the river bed, and abutments at both ends
+      const pierMat = new THREE.MeshStandardMaterial({ map: stone ? rockTex : concTex, color: stone ? rockCol : timber ? C("#5e4b37") : C("#b4b1aa"), roughness: 0.95 });
+      const piers = timber ? [-0.55, -0.15, 0.25, 0.6] : stone ? [-0.35, 0.35] : [0];
+      for (const f of piers) {
+        const pnt = st.pointAt(b.s + f * b.half * 2 * 0.5), hgt = pnt.y - 1.2 - b.bed + 0.5;
+        const g = timber ? new THREE.BoxGeometry(w * 2 + 2, hgt, 0.35) : new THREE.BoxGeometry(w * 2 + 1, hgt, stone ? 1.6 : 1.2);
+        const m = new THREE.Mesh(g, pierMat); m.position.set(pnt.x, pnt.y - 1.2 - hgt / 2, pnt.z); m.rotation.y = pnt.h; m.castShadow = true; m.receiveShadow = true; scene.add(m);
+      }
+      for (const sp of [b.s0, b.s1]) {
+        const pnt = st.pointAt(sp), hgt = pnt.y - b.bed + 1;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w * 2 + 4, hgt, 3), pierMat); m.position.set(pnt.x, pnt.y - 1.2 - hgt / 2 + 1.1, pnt.z); m.rotation.y = pnt.h; m.receiveShadow = true; scene.add(m);
+      }
+    }
+    // ---- rivers (water ribbons along each river line) ----
+    if (st.rivers.length) {
+      const nrm = this.waterNormal || normalFromHeight(tileNoise(128, [8, 16, 32], 21), 128, 3);
+      const riverNrm = nrm.clone(); riverNrm.wrapS = riverNrm.wrapT = THREE.RepeatWrapping; riverNrm.repeat.set(1, 1); riverNrm.needsUpdate = true;
+      this.riverNormal = riverNrm;
+      for (const rv of st.rivers) {
+        const muddy = rv.muddy, frozen = rv.frozen;
+        const col = frozen ? C("#dfe8f2") : muddy ? C("#6b5640") : C(this.k.zenith).lerp(C(rv.ford ? "#3d5a5c" : "#14323c"), 0.7);
+        const mat = new THREE.MeshStandardMaterial({ color: col, roughness: frozen ? 0.3 : 0.08, metalness: frozen ? 0 : 0.15, normalMap: riverNrm, normalScale: new THREE.Vector2(0.45, 0.45), transparent: !frozen, opacity: rv.ford ? 0.72 : 0.9, depthWrite: !!frozen, envMapIntensity: 1.3 });
+        const P = rv.pts, pos = [], uv = [], idx = [], hw = rv.halfW + 1.5;
+        let along = 0;
+        for (let k = 0; k < P.length; k++) {
+          const a = P[Math.max(0, k - 1)], c = P[Math.min(P.length - 1, k + 1)];
+          let tx = c[0] - a[0], tz = c[1] - a[1]; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
+          if (k) along += Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]);
+          for (const sgn of [-1, 1]) { pos.push(P[k][0] - tz * hw * sgn, rv.level, P[k][1] + tx * hw * sgn); uv.push(sgn * hw / 6, along / 6); }
+          if (k) { const b0 = (k - 1) * 2; idx.push(b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2); }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+        geo.setIndex(idx); geo.computeVertexNormals();
+        const m = new THREE.Mesh(geo, mat); m.renderOrder = 4; m.receiveShadow = true;
+        scene.add(m); this.disposables.push(geo);
+        if (rv.ford && !frozen) {
+          // stones and gravel bars at the edges of the splash
+          const rr = makeRng(st.seed ^ Math.round(rv.s));
+          const stones = [];
+          for (let k = 0; k < 26; k++) { const pnt = st.pointAt(rv.s + rr.range(-rv.halfW, rv.halfW)), side = rr.chance(0.5) ? 1 : -1, d = side * (w + rr.range(1.2, 5)); stones.push({ x: pnt.x + Math.cos(pnt.h) * d, y: rv.level - 0.12, z: pnt.z - Math.sin(pnt.h) * d, s: rr.range(0.2, 0.6) }); }
+          const sg = new THREE.IcosahedronGeometry(1, 0);
+          const sm = new THREE.InstancedMesh(sg, new THREE.MeshStandardMaterial({ color: C(this.loc.pal.rock).multiplyScalar(0.8), roughness: 0.6 }), stones.length);
+          const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), pv = new THREE.Vector3(), sc = new THREE.Vector3();
+          stones.forEach((o, i) => sm.setMatrixAt(i, m4.compose(pv.set(o.x, o.y, o.z), qq.setFromEuler(new THREE.Euler(rr() * 3, rr() * 3, 0)), sc.set(o.s, o.s * 0.55, o.s))));
+          sm.computeBoundingSphere(); scene.add(sm);
+        }
+      }
+    }
+  }
+
+  // Inside a tunnel the light drops away, as if your eyes were adjusting.
+  tunnelDarkness(dt, camera) {
+    const st = this.stage;
+    let target = 0;
+    if (st.tunnels.length) {
+      let q = st.locate(camera.position.x, camera.position.z, this._camHint, this._camQ || (this._camQ = {}));
+      if (Math.abs(q.d) > st.w + 15) q = st.locate(camera.position.x, camera.position.z, null, this._camQ); // after a reset or jump
+      this._camHint = q.i;
+      for (const t of st.tunnels) {
+        if (q.s > t.s0 - 6 && q.s < t.s1 + 6 && Math.abs(q.d) < st.w + 1.2 && camera.position.y < q.y + 6.3) {
+          const inside = Math.min(q.s - t.s0, t.s1 - q.s);
+          target = Math.max(target, smoothstep(-6, 18, inside));
+        }
+      }
+    }
+    this.dark += (target - this.dark) * Math.min(1, dt * 2.2);
+    const k = this.k, d = this.dark;
+    this.sun.intensity = k.sunI * (1 - 0.9 * d);
+    this.hemi.intensity = k.hemiI * (1 - 0.72 * d);
+    this.scene.environmentIntensity = k.envI * (1 - 0.65 * d);
+  }
+
   buildMountains() {
     const g = this.stage.grid, cx = g.x0 + g.nx * g.cell / 2, cz = g.z0 + g.nz * g.cell / 2;
     const nz = makeNoise(this.stage.seed ^ 91), k = this.k;
@@ -941,6 +1200,8 @@ export class World {
     }
     if (car && this.crowdBody) this.poseCrowd(car, this.time.value, false);
     if (this.waterNormal) this.waterNormal.offset.set(this.time.value * 0.004, this.time.value * 0.003);
+    if (this.riverNormal) this.riverNormal.offset.set(0, -this.time.value * 0.12);
+    this.tunnelDarkness(dt, camera);
     if (this.flareSprites) this.flareSprites.forEach((s, i) => { s.scale.setScalar(1.4 + Math.sin(this.time.value * 23 + i * 7) * 0.25 + Math.sin(this.time.value * 37 + i) * 0.15); });
   }
 

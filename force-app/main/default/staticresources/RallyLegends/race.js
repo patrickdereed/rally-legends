@@ -58,7 +58,7 @@ export class Race {
     this.vehicle = new Vehicle(this.career.spec(this.car.id), st, { assist: this.settings.assist, manual: this.settings.manual });
     this.model.update(this.vehicle, 0.016);
     const night = this.world.k.night || this.world.k.time === "dusk" || this.loc.stages[this.o.stageIdx].weather === "fog";
-    this.model.setLights(night);
+    this.model.setLights(night); this.night = night;
     if (night) this.addHeadlights();
     const dirtCol = { snow: "#c7d0da", sand: this.loc.pal.dirt, gravel: this.loc.pal.dirt, mud: "#5a4532", tarmac: "#6d6458" }[this.loc.surface];
     this.model.setDirt(0, dirtCol);
@@ -168,10 +168,13 @@ export class Race {
     this.model.update(v, dt);
     this.maxSpeed = Math.max(this.maxSpeed, v.speed);
     const surf = v.wheels[2].surf;
-    const dirtRate = { gravel: 1, sand: 1.2, mud: 2.2, snow: 0.7, deepsnow: 1, grass: 1.2, rock: 0.8, scrub: 1, water: 1.5 }[surf] || (this.world.k.wet ? 0.5 : 0.1);
+    const dirtRate = { gravel: 1, sand: 1.2, mud: 2.2, snow: 0.7, deepsnow: 1, grass: 1.2, rock: 0.8, scrub: 1, water: 1.5, ford: 1.6 }[surf] || (this.world.k.wet ? 0.5 : 0.1);
     this.dirt = Math.min(1, this.dirt + v.speed * dt * 0.00045 * dirtRate);
     this.model.setDirt(this.dirt * 0.9);
     this.world.update(dt, app.camera, v);
+    // headlamps on through tunnels
+    const lit = this.night || this.world.dark > 0.35;
+    if (lit !== this.model.lightsOn) this.model.setLights(lit);
     this.fx.update(dt, app.camera, this.phase === "intro" || this.phase === "countdown" ? null : v);
     app.audio.update(v, dt, { surf, slip: Math.max(v.wheels[2].slip, v.wheels[0].slip) });
     if (this.ghostModel) this.updateGhost();

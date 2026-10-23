@@ -174,7 +174,7 @@ export class FX {
       else if (surf === "snow" || surf === "deepsnow" || surf === "ice") type = "snow";
       else if (surf === "mud") type = "mud";
       else if (surf === "grass") type = "grass";
-      else if (surf === "water") type = "splash";
+      else if (surf === "water" || surf === "ford") type = "splash";
       else if ((surf === "tarmac" || surf === "concrete") && (slip > 0.55 || w.spin > 0.2)) type = "smoke";
       if (!type) continue;
       const rear = i >= 2;

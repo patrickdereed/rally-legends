@@ -20,7 +20,7 @@ for (const loc of LOCATIONS) {
       v.step(DT, inp); t += DT;
       maxSpd = Math.max(maxSpd, v.speed);
       if (v.airborne) air += DT;
-      for (const e of v.events) if (e.type === "impact") impacts++;
+      for (const e of v.events) if (e.type === "impact") { impacts++; if (process.env.DBG) console.log("  impact", e.kind, e.mag.toFixed(1), "at s", v.maxS.toFixed(0), "d", (v.d || 0).toFixed(2)); }
       v.events.length = 0;
       if (Math.abs(v.d) > st.w + 12) offT += DT; else offT = 0;
       if (Math.floor(t) !== Math.floor(t - DT)) { if (v.maxS - lastS < 1) stuck++; else stuck = 0; lastS = v.maxS; }
