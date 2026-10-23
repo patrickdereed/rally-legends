@@ -452,9 +452,9 @@ export const OBJECTIVES = [
 // Three front-runners set the title pace; the back four are spread out so a newer driver can score
 // solid points and climb the order before their car and driving catch up.
 export const RIVALS = {
-  H: [["Léon Duval", "FR", -0.012], ["Siobhan Hale", "GB", -0.004], ["Timo Rautio", "FI", 0.0], ["Lars Ekholm", "SE", 0.024], ["Giulia Ferraro", "IT", 0.042], ["Pedro Alves", "PT", 0.065], ["Ewan Price", "GB", 0.095]],
-  G4: [["Pekka Salo", "FI", -0.014], ["Bernard Laffont", "FR", -0.006], ["Walter Brandt", "DE", 0.0], ["Aiko Mori", "JP", 0.024], ["Björn Strand", "SE", 0.042], ["Raúl Benítez", "AR", 0.065], ["Kofi Mensah", "KE", 0.095]],
-  GB: [["Jari Kallio", "FI", -0.015], ["Claire Arnaud", "FR", -0.007], ["Hannes Vogt", "DE", -0.001], ["Nils Halvorsen", "SE", 0.024], ["Massimo Rinaldi", "IT", 0.042], ["Joaquim Sá", "PT", 0.065], ["Dermot Quinn", "IE", 0.095]],
-  WRC: [["Callum Barr", "GB", -0.016], ["Jussi Lahti", "FI", -0.008], ["Carlos Ortega", "ES", -0.002], ["Didier Aubert", "FR", 0.024], ["Kenji Arai", "JP", 0.042], ["Petter Lund", "NO", 0.065], ["Richard Byrne", "NZ", 0.095]],
-  R1: [["Eero Virtanen", "FI", -0.017], ["Lucien Lamy", "FR", -0.009], ["Pieter Mertens", "BE", -0.003], ["Gareth Rhys", "GB", 0.024], ["Rasmus Kask", "EE", 0.042], ["Takumi Kato", "JP", 0.065], ["Dani Solano", "ES", 0.095]]
+  H: [["Léon Duval", "FR", -0.012], ["Siobhan Hale", "GB", -0.004], ["Timo Rautio", "FI", 0.0], ["Lars Ekholm", "SE", 0.015], ["Giulia Ferraro", "IT", 0.027], ["Pedro Alves", "PT", 0.0425], ["Ewan Price", "GB", 0.0625]],
+  G4: [["Pekka Salo", "FI", -0.014], ["Bernard Laffont", "FR", -0.006], ["Walter Brandt", "DE", 0.0], ["Aiko Mori", "JP", 0.015], ["Björn Strand", "SE", 0.027], ["Raúl Benítez", "AR", 0.042], ["Kofi Mensah", "KE", 0.0615]],
+  GB: [["Jari Kallio", "FI", -0.015], ["Claire Arnaud", "FR", -0.007], ["Hannes Vogt", "DE", -0.001], ["Nils Halvorsen", "SE", 0.015], ["Massimo Rinaldi", "IT", 0.027], ["Joaquim Sá", "PT", 0.0425], ["Dermot Quinn", "IE", 0.0615]],
+  WRC: [["Callum Barr", "GB", -0.016], ["Jussi Lahti", "FI", -0.008], ["Carlos Ortega", "ES", -0.002], ["Didier Aubert", "FR", 0.0145], ["Kenji Arai", "JP", 0.0265], ["Petter Lund", "NO", 0.0415], ["Richard Byrne", "NZ", 0.0605]],
+  R1: [["Eero Virtanen", "FI", -0.017], ["Lucien Lamy", "FR", -0.009], ["Pieter Mertens", "BE", -0.003], ["Gareth Rhys", "GB", 0.014], ["Rasmus Kask", "EE", 0.026], ["Takumi Kato", "JP", 0.041], ["Dani Solano", "ES", 0.06]]
 };
