@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ApexPage xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <availableInTouch>false</availableInTouch>
+    <confirmationTokenRequired>false</confirmationTokenRequired>
+    <description>Rally Legends: a rally time-attack game with a season mode, garage and upgrades. Loads the RallyLegends static resource as ES modules. Reads no Salesforce data; progress is saved in the browser per user.</description>
+    <label>Rally Legends</label>
+</ApexPage>
