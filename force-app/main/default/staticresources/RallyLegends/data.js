@@ -43,7 +43,7 @@ export const CARS = [
       low: [[0, 0.6, 0.26, 0.44], [0.08, 0.9, 0.22, 0.587], [0.3, 1, 0.2, 0.735], [0.75, 1, 0.2, 0.795], [0.95, 0.95, 0.25, 0.727], [1, 0.8, 0.3, 0.6]],
       cab: { t0: 0.275, r0: 0.5, r1: 0.64, t1: 0.98, roofY: 1.13, hwBot: 0.9, hwTop: 0.7, roofDrop: 0 , aPil: 0.016, bPil: 0.009 },
       rim: "minilite", flares: 0, wing: "none", lamps: "pod2", lights: "round" },
-    livery: { design: "solid", colors: ["#1f4fa8", "#f2f2f2", "#d01f2a"], number: 18, rim: "silver" }
+    livery: { design: "solid", colors: ["#c2121b", "#f2f2f2", "#111111"], number: 18, rim: "silver" }
   },
   {
     id: "stiletto", cls: "G4", name: "Stiletto HF", maker: "Lanza", year: 1974, price: 42000,

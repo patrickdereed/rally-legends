@@ -45,9 +45,17 @@ export class Career {
   load() {
     try {
       const d = JSON.parse(safeGet(this.key) || "null");
-      if (d && d.v === VERSION) { this.d = d; return true; }
+      if (d && d.v === VERSION) { this.d = d; this.migrate(); return true; }
     } catch (e) { /* fall through to no save */ }
     return false;
+  }
+  // Factory liveries are copied into the save at purchase; refresh ones whose factory colours changed.
+  migrate() {
+    const g = this.d.garage && this.d.garage.berlinette;
+    if (g && g.livery && g.livery.key === "factory" && g.livery.colors[0] === "#1f4fa8") {
+      g.livery.colors = CAR_BY_ID.berlinette.livery.colors.slice();
+      this.save();
+    }
   }
   save() { if (this.d) safeSet(this.key, JSON.stringify(this.d)); }
   saveSettings() { safeSet(this.settingsKey, JSON.stringify(this.settings)); }
