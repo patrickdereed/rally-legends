@@ -282,7 +282,7 @@ export class UI {
     const sel = preview && preview.key ? preview.key : g.livery.key;
     const sw = cols => `<span class="sw">${cols.map(col => `<i style="background:${col}"></i>`).join("")}</span>`;
     const card = (key, name, cols, cost, rep) => {
-      const owned = c.ownsLivery(id, key), locked = rep > c.level;
+      const owned = c.ownsLivery(id, key), locked = rep > c.unlockLevel;
       return `<button class="liv ${sel === key ? "on" : ""} ${g.livery.key === key ? "cur" : ""}" data-a="liv-preview" data-id="${id}" data-key="${key}">${sw(cols)}<span class="ln">${esc(name)}</span><small>${g.livery.key === key ? "On car" : owned ? "Owned" : locked ? "🔒 Rep " + rep : fmtCredits(cost)}</small></button>`;
     };
     let html = `<div class="liv-grid">${card("factory", "Works (" + car.livery.design + ")", car.livery.colors, 0, 0)}`;
@@ -304,7 +304,7 @@ export class UI {
     const cost = c.customPaintCost(id);
     return `<p class="muted">Paint any unlocked design in your own colours.</p>
       <div class="paint">
-        <label class="field"><span>Design</span><select data-f="pdesign">${LIVERY_DESIGNS.map(d => `<option value="${d.id}" ${d.id === pv.design ? "selected" : ""} ${d.rep > c.level ? "disabled" : ""}>${d.name}${d.rep > c.level ? " (rep " + d.rep + ")" : ""}</option>`).join("")}</select></label>
+        <label class="field"><span>Design</span><select data-f="pdesign">${LIVERY_DESIGNS.map(d => `<option value="${d.id}" ${d.id === pv.design ? "selected" : ""} ${d.rep > c.unlockLevel ? "disabled" : ""}>${d.name}${d.rep > c.unlockLevel ? " (rep " + d.rep + ")" : ""}</option>`).join("")}</select></label>
         ${["Base", "Accent", "Detail"].map((l, i) => `<label class="field color"><span>${l}</span><input type="color" value="${pv.colors[i]}" data-f="pcol" data-i="${i}"></label>`).join("")}
         <label class="field"><span>Number</span><input type="number" min="1" max="99" value="${pv.number}" data-f="pnum"></label>
       </div>
@@ -503,7 +503,7 @@ export class UI {
       }
       case "cheat": {
         const r = c.cheat($("cheat-code").value);
-        if (r.ok) { this.app.audio.cash(); this.toast(r.msg); this.render(); } else this.toast(r.reason, "bad");
+        if (r.ok) { this.app.audio.cash(); this.toast(esc(r.msg)); this.render(); } else this.toast(r.reason, "bad");
         break;
       }
       case "reset-career": {

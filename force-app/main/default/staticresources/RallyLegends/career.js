@@ -96,8 +96,17 @@ export class Career {
       this.save();
       return { ok: true, msg: "+5,000,000 CR" };
     }
+    if (k === "UNLOCKEVERYTHING" || k === "UNLOCKALL") {
+      this.d.unlockAll = true;
+      let added = 0;
+      for (const car of CARS) if (!this.owns(car.id)) { this.addCar(car.id); added++; }
+      this.save();
+      return { ok: true, msg: `Everything unlocked: every era, ${added} new car${added === 1 ? "" : "s"} in your garage, all upgrades and liveries` };
+    }
     return { ok: false, reason: "Nothing happened." };
   }
+  // Reputation used for unlock checks; the unlock cheat lifts every gate without changing your real level.
+  get unlockLevel() { return this.d.unlockAll ? MAX_LEVEL : this.level; }
   earn(n, why) {
     n = Math.round(n);
     this.d.credits += n;
@@ -108,7 +117,7 @@ export class Career {
   canAfford(n) { return this.d.credits >= n; }
   get diff() { return DIFF_BY_ID[this.d.difficulty] || DIFF_BY_ID.amateur; }
 
-  classUnlocked(cls) { return this.level >= CLASS_BY_ID[cls].repReq; }
+  classUnlocked(cls) { return this.unlockLevel >= CLASS_BY_ID[cls].repReq; }
 
   // ---------- garage ----------
   owns(id) { return !!this.d.garage[id]; }
@@ -150,9 +159,9 @@ export class Career {
   partRequirement(id, cat) {
     const cur = this.partLevel(id, cat), next = cur + 1, car = CAR_BY_ID[id], cls = CLASS_BY_ID[car.cls];
     if (next >= PART_LEVELS.length) return { ok: false, maxed: true, reason: "Fully upgraded" };
-    if (next === PART_LEVELS.length - 1 && !((this.d.champs[car.cls] || {}).wins > 0)) return { ok: false, level: next, reason: "Win the " + cls.title + " to unlock Legend parts" };
+    if (next === PART_LEVELS.length - 1 && !this.d.unlockAll && !((this.d.champs[car.cls] || {}).wins > 0)) return { ok: false, level: next, reason: "Win the " + cls.title + " to unlock Legend parts" };
     const rep = cls.repReq + PART_REP_EXTRA[next];
-    if (this.level < rep) return { ok: false, level: next, reason: "Reach reputation level " + rep };
+    if (this.unlockLevel < rep) return { ok: false, level: next, reason: "Reach reputation level " + rep };
     const cost = this.partCost(id, cat, next);
     if (!this.canAfford(cost)) return { ok: false, level: next, cost, reason: "Not enough credits" };
     return { ok: true, level: next, cost };
@@ -175,7 +184,7 @@ export class Career {
   liveryRequirement(id, designId) {
     if (designId === "factory") return { ok: true, cost: 0 };
     const rep = LIVERY_BY_ID[designId].rep;
-    if (this.level < rep) return { ok: false, reason: "Reputation level " + rep };
+    if (this.unlockLevel < rep) return { ok: false, reason: "Reputation level " + rep };
     return { ok: true, cost: this.liveryCost(id, designId) };
   }
   ownsLivery(id, key) { return this.d.garage[id].liveries.includes(key); }
