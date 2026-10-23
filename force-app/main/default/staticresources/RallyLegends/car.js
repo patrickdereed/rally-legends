@@ -476,20 +476,89 @@ function canvasTexture(key, w, h, draw, srgb = true) {
   texCache[key] = t;
   return t;
 }
-// Gravel-pattern tread blocks across the face, lettering on the sidewalls. u = around, v = across the profile.
-function tireTexture() {
-  return canvasTexture("tire", 1024, 128, (x, w, h) => {
+// Tyre looks by upgrade level (Stock -> Legend): tread pattern, sidewall lettering, a coloured
+// sidewall ring on the top compounds, deeper bump and a slightly wider section.
+export const TYRE_LOOK = [
+  { name: "SUMMIT  TOURING", tread: "road", letter: "#38383a", ring: null, bump: 1.0, width: 1.0 },
+  { name: "SUMMIT  STREET", tread: "sport", letter: "#444447", ring: null, bump: 1.5, width: 1.025 },
+  { name: "SUMMIT  SPORT  GRAVEL", tread: "gravel", letter: "#56565a", ring: null, bump: 2.2, width: 1.05 },
+  { name: "SUMMIT  RALLY  GRAVEL", tread: "block", letter: "#77777c", ring: null, bump: 2.8, width: 1.075 },
+  { name: "SUMMIT  PRO", tread: "block", letter: "#e2e2e2", ring: null, bump: 3.3, width: 1.1 },
+  { name: "SUMMIT  WORKS", tread: "knobby", letter: "#f4f4f4", ring: "#e8e8e8", bump: 3.8, width: 1.125 },
+  { name: "SUMMIT  LEGEND", tread: "knobby", letter: "#e3b23c", ring: "#e3b23c", bump: 4.4, width: 1.15 },
+];
+// u = around the tyre, v = across the profile (sidewall at the top and bottom, tread in the middle).
+function tireTexture(level = 3) {
+  const look = TYRE_LOOK[Math.max(0, Math.min(TYRE_LOOK.length - 1, level))];
+  return canvasTexture("tire" + level, 1024, 128, (x, w, h) => {
     x.fillStyle = "#1b1b1c"; x.fillRect(0, 0, w, h);
     x.fillStyle = "#0a0a0b";
-    const blocks = 48;
-    for (let i = 0; i < blocks; i++) {
-      const bx = i * w / blocks;
-      for (const [y0, y1, off] of [[40, 56, 0], [58, 70, 0.5], [72, 88, 0]]) x.fillRect(bx + off * w / blocks + 2, y0, w / blocks * 0.42, y1 - y0);
-      x.fillRect(bx, 50, 2, 28);
+    const t = look.tread;
+    if (t === "road" || t === "sport") {
+      for (const y of [48, 63, 78]) x.fillRect(0, y, w, 3); // circumferential grooves
+      const n = t === "road" ? 96 : 72;
+      for (let i = 0; i < n; i++) {
+        const bx = i * w / n;
+        if (t === "road") { x.fillRect(bx, 40, 1.5, 8); x.fillRect(bx + 4, 81, 1.5, 8); }
+        else { x.save(); x.translate(bx, 64); x.rotate(0.5); x.fillRect(-1, -24, 3, 48); x.restore(); }
+      }
+    } else {
+      const blocks = t === "gravel" ? 48 : t === "block" ? 40 : 32;
+      const rows = t === "knobby" ? [[36, 54, 0], [58, 70, 0.5], [74, 92, 0]] : t === "block" ? [[38, 56, 0], [58, 70, 0.5], [72, 90, 0]] : [[40, 56, 0], [58, 70, 0.5], [72, 88, 0]];
+      const frac = t === "knobby" ? 0.52 : t === "block" ? 0.48 : 0.42;
+      x.fillStyle = "#0a0a0b"; x.fillRect(0, rows[0][0], w, rows[2][1] - rows[0][0]);
+      x.fillStyle = "#1d1d1f";
+      for (let i = 0; i < blocks; i++) {
+        const bx = i * w / blocks;
+        for (const [y0, y1, off] of rows) x.fillRect(bx + off * w / blocks + 2, y0, w / blocks * frac, y1 - y0);
+      }
     }
-    x.fillStyle = "#3c3c3e"; x.font = "bold 13px Arial, sans-serif"; x.textBaseline = "middle";
-    for (let i = 0; i < 4; i++) { x.fillText("SUMMIT  RALLY  GRAVEL", i * w / 4 + 20, 16); x.fillText("SUMMIT  RALLY  GRAVEL", i * w / 4 + 120, 112); }
+    if (look.ring) { x.fillStyle = look.ring; x.fillRect(0, 27, w, 3); x.fillRect(0, 98, w, 3); }
+    x.fillStyle = look.letter; x.font = "bold 13px Arial, sans-serif"; x.textBaseline = "middle";
+    for (let i = 0; i < 4; i++) { x.fillText(look.name, i * w / 4 + 20, 16); x.fillText(look.name, i * w / 4 + 120, 112); }
   });
+}
+// Brake looks by upgrade level (Stock -> Legend): bigger discs, then slotted and drilled faces,
+// and larger, brighter callipers.
+export const BRAKE_LOOK = [
+  { name: "Stock", face: "plain", disc: 1.0, cal: 1.0, color: null },
+  { name: "Street", face: "plain", disc: 1.03, cal: 1.06, color: "#2a2a2c" },
+  { name: "Sport", face: "vented", disc: 1.06, cal: 1.12, color: "#c8141c" },
+  { name: "Rally", face: "slotted", disc: 1.09, cal: 1.2, color: "#c8141c" },
+  { name: "Pro", face: "drilled", disc: 1.12, cal: 1.28, color: "#e0b11c" },
+  { name: "Works", face: "drilled", disc: 1.14, cal: 1.36, color: "#ff6a00" },
+  { name: "Legend", face: "drilled", disc: 1.16, cal: 1.44, color: "#d9a93a", legend: true },
+];
+function discTexture(face) {
+  return canvasTexture("disc_" + face, 256, 256, (x, w) => {
+    const c = w / 2, R = w / 2;
+    const g = x.createRadialGradient(c, c, R * 0.3, c, c, R);
+    g.addColorStop(0, "#6b6e73"); g.addColorStop(0.5, "#a3a6ab"); g.addColorStop(0.85, "#8b8e93"); g.addColorStop(1, "#5d6065");
+    x.fillStyle = g; x.fillRect(0, 0, w, w);
+    x.strokeStyle = "rgba(255,255,255,0.06)"; for (let r = R * 0.5; r < R; r += 3) { x.beginPath(); x.arc(c, c, r, 0, Math.PI * 2); x.stroke(); }
+    x.fillStyle = "#3a3c40"; x.beginPath(); x.arc(c, c, R * 0.46, 0, Math.PI * 2); x.fill(); // hat
+    x.fillStyle = "#222326"; for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; x.beginPath(); x.arc(c + Math.cos(a) * R * 0.28, c + Math.sin(a) * R * 0.28, R * 0.05, 0, Math.PI * 2); x.fill(); }
+    if (face === "vented") { x.strokeStyle = "rgba(20,20,22,0.5)"; x.lineWidth = 2; for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2; x.beginPath(); x.moveTo(c + Math.cos(a) * R * 0.95, c + Math.sin(a) * R * 0.95); x.lineTo(c + Math.cos(a) * R * 0.99, c + Math.sin(a) * R * 0.99); x.stroke(); } }
+    if (face === "slotted" || face === "drilled") {
+      x.strokeStyle = "#3c3e42"; x.lineWidth = 4;
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; x.beginPath(); x.arc(c, c, R * 0.78, a, a + 0.42); x.stroke(); }
+    }
+    if (face === "drilled") {
+      x.fillStyle = "#1c1d20";
+      for (let i = 0; i < 24; i++) for (const rr of [0.6, 0.72, 0.86]) { const a = i / 24 * Math.PI * 2 + rr * 2.1; x.beginPath(); x.arc(c + Math.cos(a) * R * rr, c + Math.sin(a) * R * rr, R * 0.025, 0, Math.PI * 2); x.fill(); }
+    }
+  });
+}
+const discMats = {};
+function discMaterial(face) {
+  // Lower metalness than real steel so the disc still reads in the shadow inside the wheel.
+  return (discMats[face] ||= new THREE.MeshStandardMaterial({ map: discTexture(face), roughness: 0.42, metalness: 0.45, emissive: 0x2a2b2e, emissiveIntensity: 0.6 }));
+}
+const tyreMats = {};
+function tyreMaterial(level) {
+  if (tyreMats[level]) return tyreMats[level];
+  const tt = tireTexture(level);
+  return (tyreMats[level] = new THREE.MeshStandardMaterial({ map: tt, bumpMap: tt, bumpScale: TYRE_LOOK[level].bump, roughness: 0.9 }));
 }
 function lensTexture() {
   return canvasTexture("lens", 128, 128, (x, w) => {
@@ -679,13 +748,14 @@ export class CarModel {
     this.body.position.z = this.offset;
 
     // Wheels
-    this.wheels = [];
+    this.wheels = []; this.tires = []; this.discs = []; this.calipers = [];
+    this.classCaliper = { H: 0x8a8d92, G4: 0x2a2a2a, GB: 0xc8141c, WRC: 0xd4a017, R1: 0xd8141c }[car.cls] || 0xc8141c;
     const ratio = RIM_RATIO[car.cls] || 0.64;
     const tireG = tireGeometry(B.wheelR, B.wheelW, ratio);
     const rimG = this.rimGeometry(B.wheelR * ratio, B.wheelW);
     const discG = new THREE.CylinderGeometry(B.wheelR * 0.5, B.wheelR * 0.5, 0.024, 28); discG.rotateZ(Math.PI / 2); discG.translate(-B.wheelW * 0.02, 0, 0);
     const calG = new THREE.BoxGeometry(0.06, B.wheelR * 0.26, B.wheelR * 0.34);
-    this.caliperMat = new THREE.MeshStandardMaterial({ color: { H: 0x8a8d92, G4: 0x2a2a2a, GB: 0xc8141c, WRC: 0xd4a017, R1: 0xd8141c }[car.cls] || 0xc8141c, roughness: 0.4, metalness: 0.3 });
+    this.caliperMat = new THREE.MeshStandardMaterial({ color: this.classCaliper, roughness: 0.4, metalness: 0.3 });
     for (let i = 0; i < 4; i++) {
       const front = i < 2, left = i % 2 === 0;
       const pivot = new THREE.Group(), spinner = new THREE.Group(), inner = new THREE.Group();
@@ -697,11 +767,14 @@ export class CarModel {
       // the calliper doesn't rotate with the wheel
       const cal = new THREE.Mesh(calG, this.caliperMat);
       cal.position.set((left ? 1 : -1) * B.wheelW * 0.08, B.wheelR * 0.3, (front ? -1 : 1) * B.wheelR * 0.22);
+      cal.userData.base = cal.position.clone();
       pivot.add(cal);
+      this.discs.push(disc); this.calipers.push(cal);
       pivot.position.set((left ? 1 : -1) * car.track / 2, B.wheelR, (front ? zF : zR) + this.offset);
       this.chassis.add(pivot);
       this.wheels.push({ pivot, spinner, front, left, baseY: B.wheelR });
       tire.castShadow = true;
+      this.tires.push(tire);
     }
     this.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
 
@@ -713,6 +786,8 @@ export class CarModel {
     this.blob = blob;
 
     this.setLivery(livery, rimId);
+    this.setTyres(opts.tyres || 0);
+    this.setBrakes(opts.brakes || 0);
     if (opts.ghost) this.makeGhost();
     this.lightsOn = false;
   }
@@ -1178,7 +1253,7 @@ export class CarModel {
       tube([hw, y, zA], [hw * 0.7, y + 0.12, zA + 0.02]); tube([-hw, y, zA], [-hw * 0.7, y + 0.12, zA + 0.02]); tube([hw * 0.7, y + 0.12, zA + 0.02], [-hw * 0.7, y + 0.12, zA + 0.02]);
       const spare = new THREE.Mesh(tireGeometry(B.wheelR, B.wheelW, RIM_RATIO[car.cls]), M.tire);
       spare.rotation.z = Math.PI / 2; spare.position.set(0, y + B.wheelW / 2 + 0.012, lerp(zA, zB, 0.62));
-      this.body.add(spare);
+      this.body.add(spare); this.spare = spare;
       const hubc = new THREE.Mesh(new THREE.CylinderGeometry(B.wheelR * 0.55, B.wheelR * 0.55, B.wheelW * 0.8, 20), this.rimMat);
       hubc.position.copy(spare.position); this.body.add(hubc);
     }
@@ -1246,6 +1321,27 @@ export class CarModel {
     this.interior = g;
   }
 
+  // Tyre upgrade level 0-6 (Stock..Legend).
+  setTyres(level = 0) {
+    const l = Math.max(0, Math.min(TYRE_LOOK.length - 1, level | 0));
+    if (this.tyreLevel === l) return;
+    this.tyreLevel = l;
+    const mat = tyreMaterial(l);
+    for (const t of this.tires) { t.material = mat; t.scale.x = TYRE_LOOK[l].width; }
+    if (this.spare) this.spare.material = mat;
+  }
+  // Brake upgrade level 0-6 (Stock..Legend).
+  setBrakes(level = 0) {
+    const l = Math.max(0, Math.min(BRAKE_LOOK.length - 1, level | 0));
+    if (this.brakeLevel === l) return;
+    this.brakeLevel = l;
+    const look = BRAKE_LOOK[l], mat = discMaterial(look.face);
+    for (const d of this.discs) { d.material = mat; d.scale.set(1, look.disc, look.disc); }
+    for (const c of this.calipers) { c.scale.set(1, look.cal, look.cal); c.position.copy(c.userData.base).multiply(new THREE.Vector3(1, look.disc, look.disc)); }
+    this.caliperMat.color.set(look.color || this.classCaliper);
+    this.caliperMat.emissive.set(look.color || this.classCaliper); this.caliperMat.emissiveIntensity = 0.22; // visible through the spokes
+    this.caliperMat.metalness = look.legend ? 0.55 : 0.2; this.caliperMat.roughness = look.legend ? 0.3 : 0.4;
+  }
   setLivery(livery, rimId) {
     if (this.liv) { this.liv.tex.dispose(); this.liv.roofTex.dispose(); }
     this.liv = paintLivery(livery, this.car);

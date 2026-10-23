@@ -68,11 +68,12 @@ export class Showroom {
     el.addEventListener("wheel", e => { if (!this.active) return; this.dist = clamp(this.dist + e.deltaY * 0.004, 4.5, 11); }, { passive: true });
   }
 
-  show(car, livery, rim) {
+  show(car, livery, rim, tyres = 0, brakes = 0) {
     const key = car.id;
     let m = this.cache.get(key);
-    if (!m) { m = new CarModel(car, livery, rim); this.cache.set(key, m); }
+    if (!m) { m = new CarModel(car, livery, rim, { tyres, brakes }); this.cache.set(key, m); }
     else m.setLivery(livery, rim);
+    m.setTyres(tyres); m.setBrakes(brakes);
     if (this.model !== m) {
       if (this.model) this.turn.remove(this.model.root);
       this.turn.add(m.root);
@@ -87,6 +88,13 @@ export class Showroom {
     }
   }
   setDirt(d) { if (this.model) this.model.setDirt(d); }
+  // Swing in low beside the front wheel for a few seconds (after a tyre or brake upgrade).
+  focusWheel() {
+    clearTimeout(this._resume); clearTimeout(this._unfocus);
+    const prev = this.dist;
+    this.auto = false; this.yaw = 1.05; this.pitch = 0.04; this.dist = 4.5;
+    this._unfocus = setTimeout(() => { this.dist = prev; this.pitch = 0.16; this.auto = true; }, 5000);
+  }
 
   update(dt, camera, panelLeft) {
     if (this.auto) this.yaw += dt * 0.18;

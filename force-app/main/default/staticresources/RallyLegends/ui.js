@@ -4,6 +4,7 @@ import {
   LOCATIONS, LOC_BY_ID, CHAMPIONSHIPS, DIFFICULTIES, DIFF_BY_ID, RIVALS, OBJECTIVES, POINTS, TIER_PRIZE, SURFACES, xpForLevel
 } from "./data.js";
 import { specStats } from "./career.js";
+import { TYRE_LOOK, BRAKE_LOOK } from "./car.js";
 import { ROAD_SURFACES } from "./data.js";
 import { buildSpec } from "./physics.js";
 import { fmtTime, fmtDelta, fmtCredits, esc, clamp } from "./util.js";
@@ -77,7 +78,7 @@ export class UI {
   }
   showCar(id, livery, rim) {
     const car = CAR_BY_ID[id], g = this.c.d && this.c.d.garage[id];
-    this.app.showroom.show(car, livery || (g ? g.livery : car.livery), rim || (g ? g.rim : car.livery.rim));
+    this.app.showroom.show(car, livery || (g ? g.livery : car.livery), rim || (g ? g.rim : car.livery.rim), g ? g.parts.tyres || 0 : 0, g ? g.parts.brakes || 0 : 0);
   }
   statBars(stats, next) {
     return `<div class="stats">${STAT_LABELS.map(([k, l]) => {
@@ -480,7 +481,17 @@ export class UI {
       case "repair": { const r = c.repair(d.id); if (!r.ok) this.toast(r.reason, "bad"); else this.app.audio.cash(); if (d.back === "event") this.go("event", { cls: d.cls }); else this.render(); break; }
       case "garage-car": c.d.selected = d.id; c.save(); this.go("garage", { id: d.id, tab: this.p.tab }); break;
       case "garage-tab": this.go("garage", { id: d.id, tab: d.tab }); break;
-      case "buy-part": { const r = c.buyPart(d.id, d.cat); if (!r.ok) this.toast(r.reason, "bad"); else { this.app.audio.cash(); this.toast(PART_CATS.find(p => p.id === d.cat).name + " upgraded"); } this.render(); break; }
+      case "buy-part": {
+        const r = c.buyPart(d.id, d.cat);
+        if (!r.ok) this.toast(r.reason, "bad");
+        else {
+          this.app.audio.cash();
+          if (d.cat === "tyres") { this.toast("New tyres fitted: " + esc(TYRE_LOOK[c.partLevel(d.id, "tyres")].name.replace(/\s+/g, " "))); this.afterRender = () => this.app.showroom.focusWheel(); }
+          else if (d.cat === "brakes") { const b = BRAKE_LOOK[c.partLevel(d.id, "brakes")]; this.toast(`${b.name} brakes fitted: bigger discs${b.face === "drilled" ? ", drilled and slotted" : b.face === "slotted" ? ", slotted" : ""}`); this.afterRender = () => this.app.showroom.focusWheel(); }
+          else this.toast(PART_CATS.find(p => p.id === d.cat).name + " upgraded");
+        }
+        this.render(); break;
+      }
       case "liv-preview": {
         const key = d.key, car = CAR_BY_ID[d.id], g = c.d.garage[d.id];
         const liv = key === "factory" ? { design: car.livery.design, colors: car.livery.colors, number: g.livery.number } : { design: key.split(":")[0], colors: LIVERY_BY_ID[key.split(":")[0]].ways[+key.split(":")[1]], number: g.livery.number };

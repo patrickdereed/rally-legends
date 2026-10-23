@@ -53,7 +53,7 @@ export class Race {
     this.world = new World(app.renderer, st, this.settings.quality);
     const scene = this.world.scene;
     const g = this.career.d.garage[this.car.id];
-    this.model = new CarModel(this.car, g.livery, g.rim);
+    this.model = new CarModel(this.car, g.livery, g.rim, { tyres: g.parts.tyres || 0, brakes: g.parts.brakes || 0 });
     scene.add(this.model.root);
     this.vehicle = new Vehicle(this.career.spec(this.car.id), st, { assist: this.settings.assist, manual: this.settings.manual });
     this.model.update(this.vehicle, 0.016);
