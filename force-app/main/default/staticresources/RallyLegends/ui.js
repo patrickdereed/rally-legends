@@ -414,7 +414,8 @@ export class UI {
         <tr><td>Camera</td><td>C · gamepad Y</td></tr><tr><td>Shift (manual)</td><td>E / Q · bumpers</td></tr><tr><td>Pause</td><td>Esc or P · Start</td></tr><tr><td>Mute</td><td>M</td></tr></tbody></table>
       <h4>Save</h4><p class="muted">Progress is stored in this browser for your Salesforce user. Copy the save code to move it to another browser.</p>
       <div class="row"><button class="btn small" data-a="save-export">Copy save code</button><button class="btn small" data-a="save-import">Load a save code…</button><button class="btn small danger" data-a="reset-career">Delete career…</button></div>
-      <textarea id="save-code" class="hidden" rows="3"></textarea></div>`;
+      <textarea id="save-code" class="hidden" rows="3"></textarea>
+      <h4>Cheat code</h4><div class="row"><input id="cheat-code" type="text" autocomplete="off" spellcheck="false" placeholder="Enter a code"><button class="btn small" data-a="cheat">Enter</button></div></div>`;
     return this.frame("settings", body, "Settings");
   }
 
@@ -498,6 +499,11 @@ export class UI {
         const ta = $("save-code");
         if (ta.classList.contains("hidden") || !ta.value.trim()) { ta.classList.remove("hidden"); ta.value = ""; ta.placeholder = "Paste a save code, then press Load again"; ta.focus(); break; }
         try { c.importCode(ta.value); this.toast("Save loaded"); this.go("season"); } catch (e) { this.toast(esc(e.message || "That code didn't work"), "bad"); }
+        break;
+      }
+      case "cheat": {
+        const r = c.cheat($("cheat-code").value);
+        if (r.ok) { this.app.audio.cash(); this.toast(r.msg); this.render(); } else this.toast(r.reason, "bad");
         break;
       }
       case "reset-career": {

@@ -86,6 +86,18 @@ export class Career {
     return { level: lvl, into: xp, need: lvl < MAX_LEVEL ? xpForLevel(lvl) : 1 };
   }
   addXp(n) { const before = this.level; this.d.xp += Math.round(n); return this.level > before ? this.level : 0; }
+  // Cheat codes (case-insensitive). Credits from cheats don't count toward lifetime earnings.
+  cheat(code) {
+    const k = String(code || "").trim().toUpperCase().replace(/\s+/g, "");
+    if (k === "SHOWMETHEMONEY") {
+      this.d.credits += 5000000;
+      this.d.log.unshift({ t: Date.now(), n: 5000000, why: "Cheat code" });
+      this.d.log.length = Math.min(this.d.log.length, 30);
+      this.save();
+      return { ok: true, msg: "+5,000,000 CR" };
+    }
+    return { ok: false, reason: "Nothing happened." };
+  }
   earn(n, why) {
     n = Math.round(n);
     this.d.credits += n;
