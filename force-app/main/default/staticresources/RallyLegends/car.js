@@ -271,7 +271,7 @@ function buildBodyGeometry(car) {
   const bx = boxiness(car), mixP = (a, b) => a.map((p, i) => [lerp(p[0], b[i][0], bx), lerp(p[1], b[i][1], bx)]);
   const half = catmull(mixP(BODY_PROF, BOXY_PROF), M / 2), halfB = catmull(mixP(BONNET_PROF, BOXY_BONNET), M / 2);
   const ER = B._endR = lerp(0.11, 0.045, bx);
-  const rise = WING_RISE[car.cls] == null ? 0.5 : WING_RISE[car.cls];
+  const rise = B.wingRise != null ? B.wingRise : WING_RISE[car.cls] == null ? 0.5 : WING_RISE[car.cls];
   const pos = [], uv = [], idx = [];
   const rings = [];
   for (let j = 0; j < ST; j++) {
@@ -849,8 +849,10 @@ export class CarModel {
     const lowNose = fh < 0.34, lid = at(0.035);
     // grille between the lamps, trimmed with a chrome strip on its top edge
     const gH = lowNose ? fh * 0.14 : fh * 0.26, gY = lowNose ? fy(0.8) : fy(0.55);
-    add(new THREE.BoxGeometry(faceHW * 0.9, gH, 0.04), [M.dark, M.dark, M.dark, M.dark, M.grille, M.dark], 0, gY, FZ - 0.012);
-    add(new THREE.BoxGeometry(faceHW * 0.94, 0.012, 0.03), M.chrome, 0, gY + gH / 2 + 0.008, FZ - 0.004);
+    if (B.grille !== false) {
+      add(new THREE.BoxGeometry(faceHW * 0.9, gH, 0.04), [M.dark, M.dark, M.dark, M.dark, M.grille, M.dark], 0, gY, FZ - 0.012);
+      add(new THREE.BoxGeometry(faceHW * 0.94, 0.012, 0.03), M.chrome, 0, gY + gH / 2 + 0.008, FZ - 0.004);
+    }
     // headlamps, kept inside the flat part of the nose
     const hy = fy(0.6);
     if (B.lights === "round") {
@@ -860,6 +862,17 @@ export class CarModel {
     } else if (B.lights === "rect") {
       const w = Math.min(0.32, faceHW * 0.52), h = Math.min(0.13, fh * 0.27);
       for (const sd of [1, -1]) this.conformLamp("rect", sd, faceHW - w - 0.01, faceHW - 0.01, hy, hy, h, h);
+    } else if (B.lights === "oval") {
+      // Oval lamps set into the top of each raised front wing, facing forward and up, with a four-dot LED signature.
+      const p = at(0.075), p2 = at(0.035), slope = Math.atan2(p.yt - p2.yt, p2.z - p.z), r = Math.min(0.105, p.hw * 0.16);
+      for (const sd of [1, -1]) {
+        const g = this.roundLamp(r, sd * p.hw * 0.66, p.yt + r * 0.05, p.z + 0.07, { depth: r * 0.8, bezel: M.dark });
+        g.scale.set(1, 0.82, 1); g.rotation.x = -0.42 - slope * 0.3;
+        for (const [dx, dy] of [[-0.42, 0.34], [0.42, 0.34], [-0.42, -0.34], [0.42, -0.34]]) {
+          const dot = new THREE.Mesh(new THREE.SphereGeometry(r * 0.11, 8, 6), M.drl); dot.position.set(dx * r, dy * r, -r * 0.05); g.add(dot);
+        }
+        const proj = new THREE.Mesh(new THREE.SphereGeometry(r * 0.3, 16, 10), M.projector); proj.position.set(0, 0, -r * 0.12); g.add(proj);
+      }
     } else if (B.lights === "slim") {
       // swept units running from beside the grille round onto the corner of the wing
       const h = Math.min(0.12, fh * 0.24);
@@ -876,7 +889,15 @@ export class CarModel {
     } else {
       // body-colour bumper: dark lower lip, mesh intakes either side with fog lamps
       add(new THREE.BoxGeometry(faceHW * 2, 0.035, 0.08), M.plastic, 0, f.yb + 0.035, FZ - 0.07);
-      for (const sd of [1, -1]) {
+      if (B.intake === "gt") {
+        // one wide black intake across the lower bumper with blade dividers, plus slim outer ducts
+        add(new THREE.BoxGeometry(faceHW * 1.25, fh * 0.34, 0.03), [M.dark, M.dark, M.dark, M.dark, M.grille, M.dark], 0, fy(0.27), FZ - 0.006);
+        add(new THREE.BoxGeometry(faceHW * 1.29, 0.02, 0.04), M.plastic, 0, fy(0.27) + fh * 0.17, FZ - 0.002);
+        for (const sd of [1, -1]) {
+          add(new THREE.BoxGeometry(0.018, fh * 0.34, 0.035), M.plastic, sd * faceHW * 0.26, fy(0.27), FZ - 0.002);
+          add(new THREE.BoxGeometry(faceHW * 0.22, fh * 0.26, 0.03), [M.dark, M.dark, M.dark, M.dark, M.grille, M.dark], sd * faceHW * 0.86, fy(0.26), FZ - 0.012);
+        }
+      } else for (const sd of [1, -1]) {
         add(new THREE.BoxGeometry(faceHW * 0.5, fh * 0.17, 0.03), [M.dark, M.dark, M.dark, M.dark, M.grille, M.dark], sd * faceHW * 0.66, fy(0.24), FZ - 0.008);
         this.roundLamp(0.04, sd * faceHW * 0.78, fy(0.24), FZ + 0.004, { depth: 0.03, bezel: M.dark });
       }
@@ -951,9 +972,12 @@ export class CarModel {
     // exhaust
     const ex = at(1);
     const eg = new THREE.CylinderGeometry(0.04, 0.04, 0.2, 12, 1, true); eg.rotateX(Math.PI / 2);
-    add(eg, M.chrome, -ex.hw * 0.5, ex.yb + 0.05, -L / 2 - 0.02);
-    const eb = new THREE.CircleGeometry(0.036, 12); add(eb, M.soot, -ex.hw * 0.5, ex.yb + 0.05, -L / 2 + 0.02, 0, Math.PI, 0);
-    this.exhaustLocal = new THREE.Vector3(-ex.hw * 0.5, ex.yb + 0.05, -L / 2 - 0.15);
+    const exX = B.exhaust === "center" ? [-0.075, 0.075] : [-ex.hw * 0.5];
+    for (const xx of exX) {
+      add(eg, M.chrome, xx, ex.yb + 0.07, -L / 2 - 0.02);
+      add(new THREE.CircleGeometry(0.036, 12), M.soot, xx, ex.yb + 0.07, -L / 2 + 0.02, 0, Math.PI, 0);
+    }
+    this.exhaustLocal = new THREE.Vector3(exX[0], ex.yb + 0.07, -L / 2 - 0.15);
     // sills: black skirts on later cars, a chrome strip on classics
     {
       const mid = at(0.5), len = (zF - zR) - 2 * (B.wheelR + 0.12), zc = (zF + zR) / 2;

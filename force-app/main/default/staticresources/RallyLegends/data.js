@@ -116,10 +116,13 @@ export const CARS = [
     blurb: "A compact hatch hiding a tubular chassis, 100 kW of hybrid boost and enough aero to bend air.",
     hp: 380, mass: 1260, drive: "AWD", awdRear: 0.5, cgFront: 0.55, wheelbase: 2.63, track: 1.6, hCG: 0.44, cdA: 0.88, clA: 1.7,
     cyl: 4, rpmIdle: 1200, rpmMax: 7800, gears: 5, gearTop: 56, grip: 1.12, brake: 1.12, steerMax: 0.56, turbo: { lag: 0.18, depth: 0.15 }, hybridKw: 100, shiftT: 0.05,
-    body: { L: 4.1, W: 1.88, wheelR: 0.34, wheelW: 0.25, axF: 0.8,
-      low: [[0, 0.9, 0.16, 0.58], [0.05, 0.99, 0.14, 0.72], [0.3, 1, 0.14, 0.875], [0.85, 1, 0.14, 0.895], [0.98, 0.98, 0.18, 0.819], [1, 0.9, 0.22, 0.72]],
-      cab: { t0: 0.225, r0: 0.42, r1: 0.76, t1: 0.94, roofY: 1.3, hwBot: 0.86, hwTop: 0.74, roofDrop: 0.1 },
-      blackPillars: true, archTrim: true, rim: "twin", flares: 2, wing: "r1", scoop: true, lamps: "none", lights: "slim" },
+    // Low fastback coupé shape: raised front wings carrying oval lamps, narrow waist, wide rear haunches,
+    // a long sloping rear screen and a wide black lower intake.
+    body: { L: 4.42, W: 1.9, wheelR: 0.34, wheelW: 0.25, axF: 0.86,
+      low: [[0, 0.84, 0.14, 0.52], [0.07, 0.94, 0.12, 0.68], [0.19, 0.97, 0.12, 0.81], [0.33, 0.95, 0.13, 0.8], [0.5, 0.94, 0.13, 0.82], [0.72, 1, 0.13, 0.9], [0.88, 0.99, 0.15, 0.88], [0.97, 0.95, 0.2, 0.79], [1, 0.88, 0.25, 0.69]],
+      cab: { t0: 0.26, r0: 0.46, r1: 0.69, t1: 0.88, roofY: 1.25, hwBot: 0.84, hwTop: 0.63, roofDrop: 0.13, bPos: 0.55 },
+      wingRise: 1.0, grille: false, intake: "gt", exhaust: "center",
+      blackPillars: false, archTrim: false, rim: "twin", flares: 2, wing: "r1", scoop: true, lamps: "none", lights: "oval" },
     livery: { design: "shards", colors: ["#f4f4f4", "#d01d27", "#141414"], number: 69, rim: "black" }
   },
   {
