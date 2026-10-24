@@ -17,6 +17,7 @@
 <script>
 window.RL_USER = '{!JSENCODE($User.Id)}';
 window.RL_NAME = '{!JSENCODE($User.FirstName)}';
+window.RL_CARS = '{!URLFOR($Resource.RallyLegendsCars)}';
 </script>
 <script type="module" src="{!URLFOR($Resource.RallyLegends, 'main.js')}"></script>
 </body>

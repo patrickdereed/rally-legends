@@ -79,7 +79,7 @@ export const CARS = [
     livery: { design: "split", colors: ["#f4f4f1", "#c3202a", "#d9a92b"], number: 2, rim: "white" }
   },
   {
-    id: "lionne", cls: "GB", name: "Lionne 205 T16", maker: "Lionne", year: 1985, price: 105000,
+    id: "lionne", cls: "GB", name: "Lionne 205 T16", maker: "Lionne", year: 1985, price: 105000, mesh: "mv6",
     blurb: "A shopping hatch in silhouette only. Mid-engined, short, and unbelievably agile on loose gravel.",
     hp: 470, mass: 920, drive: "AWD", awdRear: 0.6, cgFront: 0.44, wheelbase: 2.54, track: 1.44, hCG: 0.46, cdA: 0.74, clA: 0.5,
     cyl: 4, rpmIdle: 1100, rpmMax: 8000, gears: 5, gearTop: 57, grip: 1.0, brake: 1.0, steerMax: 0.58, turbo: { lag: 0.6, depth: 0.5 }, hybridKw: 0, shiftT: 0.2,
@@ -90,7 +90,7 @@ export const CARS = [
     livery: { design: "slashes", colors: ["#f5f5f3", "#1d3f9c", "#e2b821"], number: 5, rim: "white" }
   },
   {
-    id: "pleiad", cls: "WRC", name: "Pleiad WRX '98", maker: "Pleiad", year: 1998, price: 210000,
+    id: "pleiad", cls: "WRC", name: "Pleiad WRX '98", maker: "Pleiad", year: 1998, price: 210000, mesh: "toyama",
     blurb: "Flat-four rumble, gold wheels and a chassis that does what you ask. The benchmark of its era.",
     hp: 300, mass: 1230, drive: "AWD", awdRear: 0.55, cgFront: 0.57, wheelbase: 2.52, track: 1.5, hCG: 0.46, cdA: 0.8, clA: 0.9,
     cyl: 4, rpmIdle: 1000, rpmMax: 7500, gears: 6, gearTop: 57, grip: 1.06, brake: 1.06, steerMax: 0.56, turbo: { lag: 0.35, depth: 0.3 }, hybridKw: 0, shiftT: 0.12,
@@ -101,7 +101,7 @@ export const CARS = [
     livery: { design: "stars", colors: ["#1b3f95", "#f2c418", "#ffffff"], number: 3, rim: "gold" }
   },
   {
-    id: "ronin", cls: "WRC", name: "Ronin Evo VI", maker: "Ronin", year: 1999, price: 220000,
+    id: "ronin", cls: "WRC", name: "Ronin Evo VI", maker: "Ronin", year: 1999, price: 220000, mesh: "thunderbolt",
     blurb: "An angry turbo saloon with a twin-plane wing. More torque than the Pleiad, a little less finesse.",
     hp: 310, mass: 1250, drive: "AWD", awdRear: 0.6, cgFront: 0.58, wheelbase: 2.51, track: 1.52, hCG: 0.47, cdA: 0.82, clA: 1.0,
     cyl: 4, rpmIdle: 1000, rpmMax: 7600, gears: 6, gearTop: 58, grip: 1.05, brake: 1.08, steerMax: 0.55, turbo: { lag: 0.38, depth: 0.32 }, hybridKw: 0, shiftT: 0.12,

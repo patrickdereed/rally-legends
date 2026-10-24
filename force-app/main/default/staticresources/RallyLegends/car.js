@@ -1,16 +1,31 @@
 // Procedural car models and liveries. Each car is lofted from the station profile in data.js: a lower
 // body with wheel arches cut by raising the floor around each axle, a glass cabin with a painted roof,
 // lamps, wings, flares, mud flaps and wheels. Liveries are painted on a canvas mapped around the body.
+// Cars with a `mesh` in data.js use a modelled body instead (a "kit": CC-BY models converted by tools/build-cars.mjs
+// into the RallyLegendsCars resource); wheels, liveries, decals, crew and lamps still come from here.
 import * as THREE from "./three.module.min.js";
+import { GLTFLoader } from "./GLTFLoader.js";
 import { LIVERY_BY_ID, RIM_BY_ID, SPONSORS } from "./data.js";
 import { makeRng, hashStr, clamp, lerp, smoothstep } from "./util.js";
 
 const TEX_W = 1024, TEX_H = 512;
 
+// ---------- model kits ----------
+const KITS = {};
+// Loads the kits once; a kit that fails to load leaves its car on the lofted body.
+export function loadCarKits(base, names) {
+  const loader = new GLTFLoader(), dir = String(base || "").replace(/\/$/, "");
+  return Promise.all(names.map(n => KITS[n] ? null : loader.loadAsync(dir + "/" + n + ".glb").then(g => {
+    g.scene.traverse(o => { if (o.isMesh) o.userData.shared = true; });
+    KITS[n] = { scene: g.scene, meta: g.scene.userData.rl, decals: new Map() };
+  }).catch(e => console.warn("Rally Legends: car model " + n + " didn't load; using the built-in body.", e))));
+}
+export function kitFor(car) { return car.mesh ? KITS[car.mesh] || null : null; }
+
 // ---------- livery painting ----------
 // Canvas layout: x = along the car (0 nose .. 1 tail); rows 0..256 = left half of the cross-section
 // (0 = underside centre, ~64 sill, 128 mid-door, ~192 shoulder, 256 top centre); rows 256..512 mirror it.
-export function paintLivery(livery, car) {
+export function paintLivery(livery, car, kit = null) {
   const cv = document.createElement("canvas");
   cv.width = TEX_W; cv.height = TEX_H;
   const ctx = cv.getContext("2d");
@@ -112,8 +127,12 @@ export function paintLivery(livery, car) {
       break;
     default: break;
   }
-  // Underside, the floor seen through the glass, panel gaps, door handle and fuel filler.
-  {
+  // Underside, the floor seen through the glass, panel gaps, door handle and fuel filler (a kit has its own),
+  // or on a kit the contrast roof: the roof is part of the shell there, so paint the top rows between the screens.
+  if (kit) {
+    const m = kit.meta, u = z => (m.nose - z) / (m.nose - m.tail);
+    if (design.roof) band(232, 256, livery.colors[design.roof], u(m.screenTop) * W, u(m.rearTop) * W);
+  } else {
     const C = car.body.cab, tF = car.body.axF / car.body.L, mid = lerp(C.r0, C.r1, C.bPos || 0.46);
     ctx.fillStyle = "#141516"; ctx.fillRect(0, 0, W, 34);
     ctx.fillStyle = "#1c1d20"; ctx.fillRect((C.t0 + 0.01) * W, 204, (C.t1 - C.t0 - 0.02) * W, 52);
@@ -174,7 +193,16 @@ float rlNoise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 
   return mix(mix(mix(rlHash(i), rlHash(i + vec3(1,0,0)), f.x), mix(rlHash(i + vec3(0,1,0)), rlHash(i + vec3(1,1,0)), f.x), f.y),
              mix(mix(rlHash(i + vec3(0,0,1)), rlHash(i + vec3(1,0,1)), f.x), mix(rlHash(i + vec3(0,1,1)), rlHash(i + vec3(1,1,1)), f.x), f.y), f.z); }
 `;
-export function addDirt(mat, uniforms, strength = 1) {
+// ao (lofted bodies only; kits carry baked occlusion): { zF, zR, r, low } darkens around the wheel arches and
+// towards the bottom of the body, the way the modelled cars' baked occlusion grounds them.
+export function addDirt(mat, uniforms, strength = 1, ao = null) {
+  const f = v => v.toFixed(3);
+  const aoGlsl = ao ? `
+        { float aoA = 1.0, top = smoothstep(${f(ao.r * 2 + 0.02)}, ${f(ao.r * 2 + 0.16)}, vLocalPos.y);
+          aoA *= mix(mix(0.55, 1.0, smoothstep(${f(ao.r + 0.03)}, ${f(ao.r + 0.24)}, length(vec2(vLocalPos.y - ${f(ao.r)}, vLocalPos.z - ${f(ao.zF)})))), 1.0, top);
+          aoA *= mix(mix(0.55, 1.0, smoothstep(${f(ao.r + 0.03)}, ${f(ao.r + 0.24)}, length(vec2(vLocalPos.y - ${f(ao.r)}, vLocalPos.z - ${f(ao.zR)})))), 1.0, top);
+          aoA *= mix(0.68, 1.0, smoothstep(${f(ao.low)}, ${f(ao.low + 0.3)}, vLocalPos.y));
+          diffuseColor.rgb *= aoA; }` : "";
   mat.onBeforeCompile = shader => {
     shader.uniforms.uDirt = uniforms.uDirt;
     shader.uniforms.uDirtCol = uniforms.uDirtCol;
@@ -188,11 +216,11 @@ export function addDirt(mat, uniforms, strength = 1) {
         { float h = clamp((vLocalPos.y - 0.1) / 1.0, 0.0, 1.0);
           float n = rlNoise(vLocalPos * 7.0) * 0.6 + rlNoise(vLocalPos * 23.0) * 0.4;
           dirtAmt = clamp(uDirt * ${strength.toFixed(2)} * (1.5 - h * 1.6) + (n - 0.5) * 0.9 * uDirt, 0.0, 1.0);
-          diffuseColor.rgb = mix(diffuseColor.rgb, uDirtCol * (0.75 + 0.5 * n), dirtAmt * 0.94); }`)
+          diffuseColor.rgb = mix(diffuseColor.rgb, uDirtCol * (0.75 + 0.5 * n), dirtAmt * 0.94); }${aoGlsl}`)
       .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.95, dirtAmt);")
       .replace("material.clearcoat = clearcoat;", "material.clearcoat = clearcoat * (1.0 - dirtAmt);");
   };
-  mat.customProgramCacheKey = () => "rl-dirt-" + strength;
+  mat.customProgramCacheKey = () => "rl-dirt-" + strength + (ao ? ":" + [ao.zF, ao.zR, ao.r, ao.low].map(f).join(",") : "");
 }
 
 // ---------- geometry helpers ----------
@@ -714,6 +742,75 @@ export class CarModel {
     addDirt(this.paint, this.dirt); addDirt(this.roofMat, this.dirt, 0.4); addDirt(this.solid, this.dirt, 1.2); addDirt(this.accent, this.dirt, 1.2);
     addDirt(this.rimMat, this.dirt, 1.6);
 
+    // Body: a modelled one from a kit when this car has one loaded, otherwise lofted from the stations in data.js.
+    const kit = this.kit = kitFor(car);
+    const { zF, zR } = kit ? kit.meta : this.buildLofted(car);
+    // Visible wheel size and track (the physics keeps its own numbers in data.js).
+    const V = this.vis = kit ? { wheelR: kit.meta.wheelR, wheelW: kit.meta.wheelW, track: kit.meta.track } : { wheelR: B.wheelR, wheelW: B.wheelW, track: car.track };
+    this.zF = zF; this.zR = zR;
+    if (!kit) {
+      const ao = { zF, zR, r: B.wheelR, low: Math.min(...B.low.map(l => l[2])) };
+      addDirt(this.paint, this.dirt, 1, ao); addDirt(this.solid, this.dirt, 1.2, ao);
+    }
+
+    // Origin at the centre of gravity: front axle sits `a` ahead of it.
+    const b = car.cgFront * car.wheelbase, a = car.wheelbase - b;
+    this.offset = a - zF;
+    this.body.position.z = this.offset;
+    if (kit) this.buildKit(kit);
+    // nose position and the bonnet camera eye, body-local
+    this.noseZ = kit ? kit.meta.nose : B.L / 2;
+    this.eyeBonnet = kit ? [0, kit.meta.hoodY + 0.42, kit.meta.screenBase + 0.15] : [0, profileOf(B)[12][3] + 0.42, B.L / 2 - B.cab.t0 * B.L + 0.15];
+
+    // Wheels
+    this.wheels = []; this.tires = []; this.discs = []; this.calipers = [];
+    this.classCaliper = { H: 0x8a8d92, G4: 0x2a2a2a, GB: 0xc8141c, WRC: 0xd4a017, R1: 0xd8141c }[car.cls] || 0xc8141c;
+    const ratio = RIM_RATIO[car.cls] || 0.64;
+    const tireG = tireGeometry(V.wheelR, V.wheelW, ratio);
+    const rimG = this.rimGeometry(V.wheelR * ratio, V.wheelW);
+    const discG = new THREE.CylinderGeometry(V.wheelR * 0.5, V.wheelR * 0.5, 0.024, 28); discG.rotateZ(Math.PI / 2); discG.translate(-V.wheelW * 0.02, 0, 0);
+    const calG = new THREE.BoxGeometry(0.06, V.wheelR * 0.26, V.wheelR * 0.34);
+    this.caliperMat = new THREE.MeshStandardMaterial({ color: this.classCaliper, roughness: 0.4, metalness: 0.3 });
+    for (let i = 0; i < 4; i++) {
+      const front = i < 2, left = i % 2 === 0;
+      const pivot = new THREE.Group(), spinner = new THREE.Group(), inner = new THREE.Group();
+      const tire = new THREE.Mesh(tireG, M.tire), rim = new THREE.Mesh(rimG.face, this.rimMat), rimDark = new THREE.Mesh(rimG.dark, M.rimDark), rimBright = new THREE.Mesh(rimG.bright, M.chrome);
+      const disc = new THREE.Mesh(discG, M.disc);
+      inner.add(tire, rim, rimDark, rimBright, disc);
+      if (!left) inner.rotation.y = Math.PI;
+      spinner.add(inner); pivot.add(spinner);
+      // the calliper doesn't rotate with the wheel
+      const cal = new THREE.Mesh(calG, this.caliperMat);
+      cal.position.set((left ? 1 : -1) * V.wheelW * 0.08, V.wheelR * 0.3, (front ? -1 : 1) * V.wheelR * 0.22);
+      cal.userData.base = cal.position.clone();
+      pivot.add(cal);
+      this.discs.push(disc); this.calipers.push(cal);
+      pivot.position.set((left ? 1 : -1) * V.track / 2, V.wheelR, (front ? zF : zR) + this.offset);
+      this.chassis.add(pivot);
+      this.wheels.push({ pivot, spinner, front, left, baseY: V.wheelR });
+      tire.castShadow = true;
+      this.tires.push(tire);
+    }
+    this.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+
+    // Soft contact shadow under the car (helps when shadow maps are off or low-res)
+    const blobW = kit ? kit.meta.hw * 2 : B.W, blobL = kit ? kit.meta.nose - kit.meta.tail : B.L;
+    const blob = new THREE.Mesh(new THREE.PlaneGeometry(blobW * 1.35, blobL * 1.2), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.75 }));
+    blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.position.z = this.offset + (zF + zR) / 2;
+    blob.renderOrder = 1;
+    this.chassis.add(blob);
+    this.blob = blob;
+
+    this.setLivery(livery, rimId);
+    this.setTyres(opts.tyres || 0);
+    this.setBrakes(opts.brakes || 0);
+    if (opts.ghost) this.makeGhost();
+    this.lightsOn = false;
+  }
+
+  // The lofted body: shell, glass cabin, window frames, sun strip and all the procedural details.
+  buildLofted(car) {
+    const B = car.body, M = sharedMats();
     const { geo, zF, zR, swell, flareW } = buildBodyGeometry(car);
     this.swell = swell; this.flareW = flareW;
     this.zF = zF; this.zR = zR;
@@ -741,55 +838,140 @@ export class CarModel {
     });
     this.body.add(new THREE.Mesh(buildSunstrip(car), new THREE.MeshStandardMaterial({ map: stripTex, roughness: 0.4, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })));
     this.addDetails(car, zF, zR);
+    return { zF, zR };
+  }
 
-    // Origin at the centre of gravity: front axle sits `a` ahead of it.
-    const b = car.cgFront * car.wheelbase, a = car.wheelbase - b;
-    this.offset = a - zF;
-    this.body.position.z = this.offset;
-
-    // Wheels
-    this.wheels = []; this.tires = []; this.discs = []; this.calipers = [];
-    this.classCaliper = { H: 0x8a8d92, G4: 0x2a2a2a, GB: 0xc8141c, WRC: 0xd4a017, R1: 0xd8141c }[car.cls] || 0xc8141c;
-    const ratio = RIM_RATIO[car.cls] || 0.64;
-    const tireG = tireGeometry(B.wheelR, B.wheelW, ratio);
-    const rimG = this.rimGeometry(B.wheelR * ratio, B.wheelW);
-    const discG = new THREE.CylinderGeometry(B.wheelR * 0.5, B.wheelR * 0.5, 0.024, 28); discG.rotateZ(Math.PI / 2); discG.translate(-B.wheelW * 0.02, 0, 0);
-    const calG = new THREE.BoxGeometry(0.06, B.wheelR * 0.26, B.wheelR * 0.34);
-    this.caliperMat = new THREE.MeshStandardMaterial({ color: this.classCaliper, roughness: 0.4, metalness: 0.3 });
-    for (let i = 0; i < 4; i++) {
-      const front = i < 2, left = i % 2 === 0;
-      const pivot = new THREE.Group(), spinner = new THREE.Group(), inner = new THREE.Group();
-      const tire = new THREE.Mesh(tireG, M.tire), rim = new THREE.Mesh(rimG.face, this.rimMat), rimDark = new THREE.Mesh(rimG.dark, M.rimDark), rimBright = new THREE.Mesh(rimG.bright, M.chrome);
-      const disc = new THREE.Mesh(discG, M.disc);
-      inner.add(tire, rim, rimDark, rimBright, disc);
-      if (!left) inner.rotation.y = Math.PI;
-      spinner.add(inner); pivot.add(spinner);
-      // the calliper doesn't rotate with the wheel
-      const cal = new THREE.Mesh(calG, this.caliperMat);
-      cal.position.set((left ? 1 : -1) * B.wheelW * 0.08, B.wheelR * 0.3, (front ? -1 : 1) * B.wheelR * 0.22);
-      cal.userData.base = cal.position.clone();
-      pivot.add(cal);
-      this.discs.push(disc); this.calipers.push(cal);
-      pivot.position.set((left ? 1 : -1) * car.track / 2, B.wheelR, (front ? zF : zR) + this.offset);
-      this.chassis.add(pivot);
-      this.wheels.push({ pivot, spinner, front, left, baseY: B.wheelR });
-      tire.castShadow = true;
-      this.tires.push(tire);
+  // A modelled body from a kit. Geometry and textures are shared with the kit; the paint becomes this car's livery
+  // material (livery on the second UV set, the model's baked occlusion kept), and the lamps get per-car copies.
+  buildKit(kit) {
+    const m = kit.meta, M = sharedMats(), scene = kit.scene.clone(true), lamp = new Map();
+    this.paintMeshes = []; this.headKit = []; this.brakeKit = [];
+    scene.traverse(o => {
+      if (!o.isMesh) return;
+      const mat = o.material;
+      if (mat.name === "paint") {
+        if (mat.aoMap) { this.paint.aoMap = mat.aoMap; this.paint.aoMapIntensity = 1; }
+        this.paint.side = mat.side;
+        o.material = this.paint; this.paintMeshes.push(o);
+      } else if (mat.name === "lamp_head" || mat.name === "lamp_brake") {
+        let c = lamp.get(mat);
+        if (!c) {
+          const head = mat.name === "lamp_head";
+          c = mat.clone(); c.emissive = new THREE.Color(head ? 0xfff3dd : 0xff2a18); c.emissiveMap = mat.map; c.emissiveIntensity = 0;
+          lamp.set(mat, c); (head ? this.headKit : this.brakeKit).push(c);
+        }
+        o.material = c;
+      }
+    });
+    this.body.add(scene);
+    const add = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); this.body.add(o); return o; };
+    // mud flaps behind each wheel
+    for (const z of [m.zF, m.zR]) for (const s of [1, -1]) add(new THREE.BoxGeometry(m.wheelW + 0.05, 0.28, 0.012), M.flap, s * m.track / 2, 0.22, z - m.wheelR - 0.1);
+    this.exhaustLocal = new THREE.Vector3(-m.hw * 0.45, 0.24, m.tail - 0.12);
+    // crew in helmets: driver behind the model's steering wheel, co-driver beside
+    const helmR = 0.12, zSeat = m.rearTop + (m.screenTop - m.rearTop) * 0.5, yHead = m.roofY - 0.1 - helmR;
+    this.helmetMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.3, metalness: 0.1 });
+    for (const side of [1, -1]) {
+      const x = side * Math.max(0.3, Math.abs(m.steerX));
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.22, 4, 10), M.suit);
+      torso.position.set(x, yHead - helmR - 0.27, zSeat - 0.06); torso.rotation.x = 0.16; this.body.add(torso);
+      const head = add(new THREE.SphereGeometry(helmR, 16, 12), this.helmetMat, x, yHead, zSeat);
+      const visor = new THREE.Mesh(new THREE.SphereGeometry(helmR * 1.02, 16, 8, -0.9, 1.8, 1.1, 0.7), M.visor);
+      visor.position.copy(head.position); this.body.add(visor);
     }
-    this.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  }
 
-    // Soft contact shadow under the car (helps when shadow maps are off or low-res)
-    const blob = new THREE.Mesh(new THREE.PlaneGeometry(B.W * 1.35, B.L * 1.2), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.75 }));
-    blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.position.z = this.offset + (zF + zR) / 2;
-    blob.renderOrder = 1;
-    this.chassis.add(blob);
-    this.blob = blob;
-
-    this.setLivery(livery, rimId);
-    this.setTyres(opts.tyres || 0);
-    this.setBrakes(opts.brakes || 0);
-    if (opts.ghost) this.makeGhost();
-    this.lightsOn = false;
+  // First hit on the painted shell along a body-local ray: { p, n } in body space, or null.
+  kitHit(o, d) {
+    const ray = this._ray || (this._ray = new THREE.Raycaster());
+    this.body.updateMatrixWorld(true);
+    ray.set(this.body.localToWorld(o.clone()), d.clone().transformDirection(this.body.matrixWorld));
+    const hit = ray.intersectObjects(this.paintMeshes, false)[0];
+    if (!hit) return null;
+    const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).transformDirection(this.body.matrixWorld.clone().invert());
+    return { p: this.body.worldToLocal(hit.point.clone()), n };
+  }
+  // A decal shrink-wrapped onto the kit's shell: on a side (sd = ±1, centred at z, y) or on the roof (sd = 0, centred at z, x).
+  // Grid points are found by raycasting, so the geometry is cached on the kit per placement.
+  kitDecal(tex, sd, zc, c2, wM, hM) {
+    const key = [sd, zc, c2, wM, hM].map(v => v.toFixed(3)).join(":"), cache = this.kit.decals;
+    let g = cache.get(key);
+    if (!g) {
+      const nx = 14, ny = 6, pos = [], uv = [], ok = [], idx = [];
+      for (let iy = 0; iy <= ny; iy++) for (let ix = 0; ix <= nx; ix++) {
+        const u = ix / nx, v = iy / ny;
+        let hit;
+        if (sd) {
+          const z = zc + (sd > 0 ? 0.5 - u : u - 0.5) * wM, y = c2 + (v - 0.5) * hM;
+          hit = this.kitHit(new THREE.Vector3(sd * 3, y, z), new THREE.Vector3(-sd, 0, 0));
+        } else { // reads from the left side: across the canvas runs nose -> tail, up runs away across the roof
+          const z = zc + (0.5 - u) * wM, x = c2 + (0.5 - v) * hM;
+          hit = this.kitHit(new THREE.Vector3(x, 4, z), new THREE.Vector3(0, -1, 0));
+        }
+        if (hit) { pos.push(hit.p.x + hit.n.x * 0.004, hit.p.y + hit.n.y * 0.004, hit.p.z + hit.n.z * 0.004); ok.push(1); } else { pos.push(0, 0, 0); ok.push(0); }
+        uv.push(u, v);
+      }
+      for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
+        const a = iy * (nx + 1) + ix, b = a + 1, c = a + nx + 1, d = c + 1;
+        if (ok[a] && ok[b] && ok[c] && ok[d]) idx.push(a, b, c, b, d, c);
+      }
+      g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+      g.setIndex(idx); g.computeVertexNormals();
+      cache.set(key, g);
+    }
+    const mat = new THREE.MeshPhysicalMaterial({ map: tex, transparent: true, alphaTest: 0.35, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.08, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    addDirt(mat, this.dirt, 0.9);
+    const mesh = new THREE.Mesh(g, mat);
+    mesh.userData.shared = true;
+    this.decals.add(mesh);
+    return mesh;
+  }
+  // Door number board, sponsor across the doors, event sticker on the rear quarter and the roof number.
+  buildKitDecals(livery) {
+    const m = this.kit.meta, car = this.car, num = String(livery.number), design = LIVERY_BY_ID[livery.design] || LIVERY_BY_ID.solid;
+    const sponsorA = SPONSORS[hashStr(car.id) % SPONSORS.length];
+    const tex = (key, wM, hM, draw) => { const W = 512, H = Math.max(24, Math.round(512 * hM / wM)); return canvasTexture("dec:" + key + ":" + H, W, H, draw); };
+    const fitText = (x, txt, w, h, maxH, font) => {
+      x.font = font.replace("#", Math.round(maxH)); const tw = x.measureText(txt).width;
+      x.save(); x.translate(w / 2, h / 2 + maxH * 0.04); x.scale(Math.min(1, w * 0.88 / tw), 1); x.fillText(txt, 0, 0); x.restore();
+    };
+    const both = (t, wM, hM, z, y) => { for (const sd of [1, -1]) this.kitDecal(t, sd, z, y, wM, hM); };
+    const zDoor = Math.min(m.zF - m.wheelR - 0.1, m.screenBase), zB = m.screenTop - (m.screenTop - m.rearTop) * 0.42, zArchR = m.zR + m.wheelR + 0.1;
+    // number board on the front door, just under the window
+    const w = Math.min(0.3, (zDoor - zB) * 0.4), h = w * 0.72;
+    const board = (key) => tex(key + num, w, h, (x, W, H) => {
+      x.fillStyle = "#151515"; x.beginPath(); x.roundRect(0, 0, W, H, H * 0.08); x.fill();
+      x.fillStyle = "#f7f7f2"; x.beginPath(); x.roundRect(W * 0.03, H * 0.04, W * 0.94, H * 0.92, H * 0.06); x.fill();
+      x.fillStyle = "#121212"; x.textAlign = "center"; x.textBaseline = "middle";
+      fitText(x, num, W, H, H * 0.74, "bold #px Arial, sans-serif");
+    });
+    both(board("board"), w, h, (zDoor + zB) / 2, m.belt - h / 2 - 0.05);
+    // sponsor along the lower doors, outlined so it reads on any paint
+    const sw = Math.min(1.1, (zDoor - zArchR) * 0.72), sh = Math.min(0.13, (m.belt - m.sill) * 0.24);
+    const dark = design.dark || isDark(design.id === "split" || design.id === "diagonal" ? livery.colors[1] : livery.colors[0]);
+    const ts = tex("spon" + sponsorA + (dark ? "w" : "b"), sw, sh, (x, W, H) => {
+      x.textAlign = "center"; x.textBaseline = "middle"; x.lineJoin = "round";
+      x.font = "italic 900 " + Math.round(H * 0.78) + "px Arial, sans-serif";
+      const tw = x.measureText(sponsorA).width; x.save(); x.translate(W / 2, H / 2 + H * 0.04); x.scale(Math.min(1, W * 0.94 / tw), 1);
+      x.lineWidth = H * 0.1; x.strokeStyle = dark ? "#111" : "#fff"; x.strokeText(sponsorA, 0, 0);
+      x.fillStyle = dark ? "#fff" : "#141414"; x.fillText(sponsorA, 0, 0); x.restore();
+    });
+    both(ts, sw, sh, (zDoor + zArchR) / 2, m.sill + (m.belt - m.sill) * 0.3);
+    // event sticker over the rear arch
+    const qw = 0.26, qh = qw * 0.2;
+    const s3 = tex("stk3", qw, qh, (x, W, H) => {
+      x.fillStyle = "#121418"; x.beginPath(); x.roundRect(1, 1, W - 2, H - 2, H * 0.2); x.fill();
+      x.fillStyle = "#f2f2f2"; x.textAlign = "center"; x.textBaseline = "middle"; fitText(x, "RALLY LEGENDS", W, H, H * 0.58, "italic 900 #px Arial, sans-serif");
+    });
+    both(s3, qw, qh, m.zR, m.belt - 0.09);
+    // roof number, read from the side the car comes past
+    const rw = 0.4, rh = 0.32;
+    const rt = tex("roof" + num, rw, rh, (x, W, H) => {
+      x.fillStyle = "#f7f7f2"; x.beginPath(); x.roundRect(2, 2, W - 4, H - 4, H * 0.06); x.fill();
+      x.fillStyle = "#111"; x.textAlign = "center"; x.textBaseline = "middle"; fitText(x, num, W, H, H * 0.8, "bold #px Arial, sans-serif");
+    });
+    this.kitDecal(rt, 0, (m.screenTop + m.rearTop) / 2, 0, rw, rh);
   }
 
   // Alloy wheel by era: Minilite-style 8-spoke (60s/70s), turbine (80s), cross-spoke mesh (90s), twin 5-spoke (modern).
@@ -1095,9 +1277,10 @@ export class CarModel {
 
   // Door number, sponsor lettering and stickers placed in defined zones (door, front wing, rear quarter).
   buildDecals(livery) {
-    if (this.decals) { this.decals.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); this.body.remove(this.decals); }
+    if (this.decals) { this.decals.traverse(o => { if (o.isMesh) { if (!o.userData.shared) o.geometry.dispose(); o.material.dispose(); } }); this.body.remove(this.decals); }
     this.decals = new THREE.Group();
     this.body.add(this.decals);
+    if (this.kit) return this.buildKitDecals(livery);
     const car = this.car, B = car.body, C = B.cab, L = B.L, er = endR(B), len = L - 2 * er;
     const classic = car.cls === "H" || car.cls === "G4", num = String(livery.number);
     const sponsorA = SPONSORS[hashStr(car.id) % SPONSORS.length], sponsorB = SPONSORS[(hashStr(car.id) >>> 3) % SPONSORS.length];
@@ -1368,7 +1551,8 @@ export class CarModel {
   }
   setLivery(livery, rimId) {
     if (this.liv) { this.liv.tex.dispose(); this.liv.roofTex.dispose(); }
-    this.liv = paintLivery(livery, this.car);
+    this.liv = paintLivery(livery, this.car, this.kit);
+    if (this.kit) this.liv.tex.channel = 1; // kit shells carry the livery mapping in their second UV set
     this.paint.map = this.liv.tex; this.paint.needsUpdate = true;
     this.roofMat.map = this.liv.roofTex; this.roofMat.needsUpdate = true;
     const design = LIVERY_BY_ID[livery.design] || LIVERY_BY_ID.solid;
@@ -1394,6 +1578,8 @@ export class CarModel {
     M.reflector.emissiveIntensity = on ? 1.6 : 0.06;
     M.bulb.emissiveIntensity = on ? 8 : 0.15;
     for (const m of this.lampMats || []) m.emissiveIntensity = on ? 3 : m.userData.drl ? 1 : 0;
+    for (const m of this.headKit || []) m.emissiveIntensity = on ? 2.4 : 0;
+    this.setBrake(0);
   }
 
   // ---------- lamps (body-local, facing +z) ----------
@@ -1494,12 +1680,12 @@ export class CarModel {
     this.chassis.rotation.set(-(this.gp || 0) - veh.airPitch, 0, this.gr || 0, "YXZ");
     this.body.rotation.set(veh.pitchV, 0, veh.rollV);
     this.body.position.y = veh.airborne ? 0.04 : -Math.abs(veh.pitchV) * 0.4;
-    const B = this.car.body;
+    const V = this.vis;
     // Wheels follow the ground under each one, drooping in the air.
     const cp = Math.cos(this.gp || 0), baseY = veh.y;
     for (let i = 0; i < 4; i++) {
       const w = this.wheels[i], vw = veh.wheels[i];
-      const target = veh.airborne ? B.wheelR - 0.1 : B.wheelR + clamp((vw.gy - baseY) * cp - this.planeOffset(i, veh), -0.1, 0.12);
+      const target = veh.airborne ? V.wheelR - 0.1 : V.wheelR + clamp((vw.gy - baseY) * cp - this.planeOffset(i, veh), -0.1, 0.12);
       w.pivot.position.y = lerp(w.pivot.position.y, target, Math.min(1, dt * 25));
       w.pivot.rotation.y = w.front ? veh.delta || 0 : 0;
       w.spinner.rotation.x = vw.rot;
@@ -1512,16 +1698,19 @@ export class CarModel {
     const sp = veh.spec, along = i < 2 ? sp.a : -sp.b, side = i % 2 === 0 ? sp.track / 2 : -sp.track / 2;
     return along * Math.sin(this.gp || 0) + side * Math.sin(this.gr || 0);
   }
-  setBrake(b) { sharedMats().tail.emissiveIntensity = 0.35 + b * 2.5 + (this.lightsOn ? 0.6 : 0); }
+  setBrake(b) {
+    sharedMats().tail.emissiveIntensity = 0.35 + b * 2.5 + (this.lightsOn ? 0.6 : 0);
+    for (const m of this.brakeKit || []) m.emissiveIntensity = 0.15 + b * 2.2 + (this.lightsOn ? 0.5 : 0);
+  }
   setDirt(amount, color) { this.dirt.uDirt.value = amount; if (color) this.dirt.uDirtCol.value.set(color); }
 
   exhaustWorld(out) {
     return this.body.localToWorld(out.copy(this.exhaustLocal));
   }
   dispose() {
-    this.root.traverse(o => { if (o.isMesh) { o.geometry.dispose(); } });
+    this.root.traverse(o => { if (o.isMesh && !o.userData.shared) o.geometry.dispose(); });
     if (this.liv) { this.liv.tex.dispose(); this.liv.roofTex.dispose(); }
-    [this.paint, this.roofMat, this.solid, this.accent, this.rimMat].forEach(m => m.dispose());
+    [this.paint, this.roofMat, this.solid, this.accent, this.rimMat, ...(this.headKit || []), ...(this.brakeKit || [])].forEach(m => m.dispose());
   }
 }
 

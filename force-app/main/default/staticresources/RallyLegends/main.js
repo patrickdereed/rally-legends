@@ -7,7 +7,8 @@ import { Showroom } from "./showroom.js";
 import { UI } from "./ui.js";
 import { Race } from "./race.js";
 import { QUALITY } from "./world.js";
-import { LOC_BY_ID, CAR_BY_ID } from "./data.js";
+import { LOC_BY_ID, CAR_BY_ID, CARS } from "./data.js";
+import { loadCarKits } from "./car.js";
 import { esc } from "./util.js";
 
 const TIPS = [
@@ -57,6 +58,8 @@ function init() {
   resize();
   document.addEventListener("visibilitychange", () => { if (document.hidden && app.race && !app.paused && app.race.phase !== "finished") app.ui.pauseMenu(app.race); });
   if (window.speechSynthesis) { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; }
+  // modelled bodies load in the background; the showroom swaps them in when they arrive
+  app.kitsReady = loadCarKits(window.RL_CARS, [...new Set(CARS.filter(c => c.mesh).map(c => c.mesh))]).then(() => app.showroom.refresh());
   app.ui.go("title");
   requestAnimationFrame(loop);
 }
@@ -100,7 +103,7 @@ app.startRace = ctx => {
   ld.classList.remove("hidden");
   app.ui.hide();
   app.audio.init();
-  setTimeout(() => {
+  Promise.resolve(app.kitsReady).then(() => setTimeout(() => {
     const race = new Race(app, ctx);
     try {
       race.build();
@@ -116,7 +119,7 @@ app.startRace = ctx => {
     app.paused = false;
     app.lastT = performance.now();
     ld.classList.add("hidden");
-  }, 60);
+  }, 60));
 };
 
 app.endRace = (race, result) => {

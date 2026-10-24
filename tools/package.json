@@ -1,0 +1,13 @@
+{
+  "name": "rally-legends-tools",
+  "private": true,
+  "description": "Builds the modelled car bodies (node tools/build-cars.mjs) from the CC-BY sources in models-src/.",
+  "type": "module",
+  "devDependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "meshoptimizer": "1.3.0",
+    "sharp": "0.35.5"
+  }
+}

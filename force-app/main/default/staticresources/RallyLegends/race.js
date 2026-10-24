@@ -5,7 +5,7 @@ import { buildStage, STEP, noteText } from "./track.js";
 import { Vehicle, DT, buildSpec } from "./physics.js";
 import { benchmark } from "./bot.js";
 import { World, QUALITY } from "./world.js";
-import { CarModel, profileOf } from "./car.js";
+import { CarModel } from "./car.js";
 import { FX } from "./fx.js";
 import { Hud } from "./hud.js";
 import { CAR_BY_ID, LOC_BY_ID, CLASS_BY_ID, RESET_PENALTY, AUTO_RESET_PENALTY, carsInClass, RIVALS } from "./data.js";
@@ -109,8 +109,8 @@ export class Race {
     this.lights = [];
     for (const s of [1, -1]) {
       const l = new THREE.SpotLight(0xfff3dd, 900, 160, 0.42, 0.55, 1.6);
-      l.position.set(s * 0.55, 0.85, this.car.body.L / 2 - 0.1); // body-local
-      l.target.position.set(s * 0.9, 0, this.car.body.L / 2 + 30);
+      l.position.set(s * 0.55, 0.85, this.model.noseZ - 0.1); // body-local
+      l.target.position.set(s * 0.9, 0, this.model.noseZ + 30);
       this.model.body.add(l, l.target);
       this.lights.push(l);
     }
@@ -303,8 +303,7 @@ export class Race {
     const jitter = () => (Math.random() - 0.5) * sh;
     if (C.inside) {
       // body-local eye points: on the bonnet just ahead of the screen, or at the front bumper
-      const B = this.car.body, L = B.L;
-      const eye = C.inside === "bonnet" ? [0, profileOf(B)[12][3] + 0.42, L / 2 - B.cab.t0 * L + 0.15] : [0, 0.5, L / 2 + 0.12];
+      const eye = C.inside === "bonnet" ? this.model.eyeBonnet : [0, 0.5, this.model.noseZ + 0.12];
       const p = this.model.body.localToWorld(new THREE.Vector3(eye[0], eye[1], eye[2]));
       const ahead = this.model.body.localToWorld(new THREE.Vector3(eye[0], eye[1] - 0.3, eye[2] + 20));
       cam.position.copy(p).add(new THREE.Vector3(jitter(), jitter(), jitter()));

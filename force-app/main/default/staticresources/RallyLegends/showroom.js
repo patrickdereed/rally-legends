@@ -143,6 +143,7 @@ export class Showroom {
   }
 
   show(car, livery, rim, tyres = 0, brakes = 0) {
+    this.last = [car, livery, rim, tyres, brakes];
     const key = car.id;
     let m = this.cache.get(key);
     if (!m) { m = new CarModel(car, livery, rim, { tyres, brakes }); this.cache.set(key, m); }
@@ -156,7 +157,7 @@ export class Showroom {
       m.root.position.set(0, 0, 0);
       m.root.rotation.set(0, 0, 0);
       m.chassis.rotation.set(0, 0, 0); m.body.rotation.set(0, 0, 0); m.body.position.y = 0;
-      for (const w of m.wheels) { w.pivot.position.y = car.body.wheelR; w.pivot.rotation.y = w.front ? 0.28 : 0; }
+      for (const w of m.wheels) { w.pivot.position.y = w.baseY; w.pivot.rotation.y = w.front ? 0.28 : 0; }
       m.setLights(false);
       m.setDirt(0);
       if (m.blob) m.blob.visible = false; // the studio's contact shadow replaces the blob
@@ -164,6 +165,14 @@ export class Showroom {
     }
   }
   setDirt(d) { if (this.model) this.model.setDirt(d); }
+  // Rebuild every cached car (after the model kits finish loading).
+  refresh() {
+    for (const m of this.cache.values()) { if (m !== this.model) m.dispose(); }
+    const cur = this.model;
+    this.cache.clear();
+    if (cur) { this.turn.remove(cur.root); this.model = null; cur.dispose(); }
+    if (this.last) this.show(...this.last);
+  }
   // Swing in low beside the front wheel for a few seconds (after a tyre or brake upgrade).
   focusWheel() {
     clearTimeout(this._resume); clearTimeout(this._unfocus);
