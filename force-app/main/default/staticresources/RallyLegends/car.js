@@ -5,6 +5,7 @@
 // into the RallyLegendsCars resource); wheels, liveries, decals, crew and lamps still come from here.
 import * as THREE from "./three.module.min.js";
 import { GLTFLoader } from "./GLTFLoader.js";
+import { KIT_PACKS } from "./kits.js";
 import { LIVERY_BY_ID, RIM_BY_ID, SPONSORS } from "./data.js";
 import { makeRng, hashStr, clamp, lerp, smoothstep } from "./util.js";
 
@@ -12,10 +13,11 @@ const TEX_W = 1024, TEX_H = 512;
 
 // ---------- model kits ----------
 const KITS = {};
-// Loads the kits once; a kit that fails to load leaves its car on the lofted body.
-export function loadCarKits(base, names) {
-  const loader = new GLTFLoader(), dir = String(base || "").replace(/\/$/, "");
-  return Promise.all(names.map(n => KITS[n] ? null : loader.loadAsync(dir + "/" + n + ".glb").then(g => {
+// Loads the kits once (each from the static resource kits.js names); a kit that fails to load leaves its car on the
+// lofted body. The page passes the resource URLs in window.RL_RES; the local test server serves them under /sr/.
+export function loadCarKits(names) {
+  const loader = new GLTFLoader(), res = window.RL_RES || {};
+  return Promise.all(names.map(n => KITS[n] ? null : loader.loadAsync((res[KIT_PACKS[n]] || "/sr/" + KIT_PACKS[n]) + "/" + n + ".glb").then(g => {
     g.scene.traverse(o => { if (o.isMesh) o.userData.shared = true; });
     KITS[n] = { scene: g.scene, meta: g.scene.userData.rl, decals: new Map() };
   }).catch(e => console.warn("Rally Legends: car model " + n + " didn't load; using the built-in body.", e))));

@@ -9,7 +9,7 @@ The game reads no Salesforce data and makes no callouts. Progress is saved in th
 - **9 rallies, 27 stages:** Monte-Carlo (Col de Turini at night), Sweden, Finland, Wales, Portugal (Fafe), Kenya, Greece, Corsica and Argentina. Every stage is generated from a fixed seed: hairpins, switchbacks, crests and jumps, ice patches, snow banks, armco and stone walls, crowds, villages, forests, lakes and the sea. Many stages also run through rock and concrete tunnels (the light drops and the headlamps come on), over stone, timber and concrete bridges across river gorges, and through water splashes, with warning signs, field fences and log piles along the way.
 - **Mixed surfaces:** each stage alternates tarmac, concrete, gravel and mud (plus snow and sand where they belong), each with its own grip, wet-weather behaviour and look. The co-driver calls surface changes.
 - **Pace notes:** corners graded 1 to 6 plus hairpins, crests, jumps, ice, surface changes, tunnels, bridges and water splashes, spoken by the co-driver (browser speech) and shown as cards.
-- **10 cars, 2 per era:** Heritage (1960s), Group 4 (1970s), Group B (1980s), World Rally Car (1990s–2000s) and Rally1 Hybrid (2020s). Names are original. The Ronin, Pleiad and Lionne use modelled bodies by Sketchfab artists (CC BY 4.0, see [CREDITS.md](CREDITS.md)); the others are built in code.
+- **11 cars across five eras:** Heritage (1960s), Group 4 (1970s), Group B (1980s, three cars), World Rally Car (1990s–2000s) and Rally1 Hybrid (2020s). Names are original. The Ronin, Pleiad, Lionne and Asti use modelled bodies by Sketchfab artists (CC BY 4.0, see [CREDITS.md](CREDITS.md)); the others are built in code.
 - **Season mode:** five championships with seven rivals per class, points, Power Stage bonus points, prize money, sponsor objectives, reputation levels that unlock each era, service-park repairs, stage retries and practice runs.
 - **Garage:** six upgrade categories (Engine, Drivetrain, Tyres, Suspension, Brakes, Weight), each with six levels bought in order (Street → Sport → Rally → Pro → Works → Legend). Seventeen livery designs in four colourways each, a custom paint shop, race numbers and wheels.
 - **Time Trial:** any stage, any owned car, any surface, with personal records and a ghost car.
@@ -26,7 +26,7 @@ A simulated full career for an average driver on Amateur takes about 18–20 hou
 |---|---|---|
 | `RallyLegends` | Visualforce page | Hosts the game full screen |
 | `RallyLegends` | Static resource (zip) | The game: ES modules, `app.css`, and three.js r170 (MIT, licence included) |
-| `RallyLegendsCars` | Static resource (zip) | Modelled car bodies (GLB, CC BY 4.0, `CREDITS.txt` included) |
+| `RallyLegendsCars`, `RallyLegendsCars2` | Static resources (zip) | Modelled car bodies (GLB, CC BY 4.0, `CREDITS.txt` in each) |
 | `RallyLegends` | Custom tab | Opens the page from the App Launcher |
 | `Rally_Legends` | Permission set | Grants the page and the tab |
 
@@ -97,10 +97,10 @@ To play locally without Salesforce, run `node test/serve.mjs` and open http://lo
 
 ### Modelled car bodies
 
-A car with `mesh: "<name>"` in `data.js` loads `RallyLegendsCars/<name>.glb` instead of its lofted body (it falls back to the lofted one if the file doesn't load). Physics is unaffected: it keeps using the numbers in `data.js`. The GLBs are built from source models that aren't in the repo:
+A car with `mesh: "<name>"` in `data.js` loads `<name>.glb` from the car pack that `kits.js` names instead of its lofted body (it falls back to the lofted one if the file doesn't load). Physics is unaffected: it keeps using the numbers in `data.js`. The GLBs are built from source models that aren't in the repo:
 
 1. Download the model from Sketchfab as GLB and save it as `models-src/<name>/source.glb`. Only use CC BY or CC0 models, and add them to `CREDITS.md` and `RallyLegendsCars/CREDITS.txt`.
-2. Add an entry to `MODELS` in `tools/build-cars.mjs`: which axis is the front, the scale, and the paint material's name (`node tools/inspect.mjs <file>` lists the parts and materials).
+2. Add an entry to `MODELS` in `tools/build-cars.mjs`: its pack, which axis is the front, the scale, the paint material's name (`node tools/inspect.mjs <file>` lists the parts and materials) and the credit.
 3. `cd tools && npm install && cd .. && node tools/build-cars.mjs <name>`
 
-The build removes the model's wheels (the game fits its own, so rim colours and tyre and brake upgrades still show), tags the paint and lamps, adds the livery UVs, shrinks the textures and records the axles, wheel size, cabin and belt line that `car.js` uses for the wheels, crew, decals and cameras. Keep the `RallyLegendsCars` folder under 5 MB.
+The build removes the model's wheels (the game fits its own, so rim colours and tyre and brake upgrades still show), tags the paint and lamps, adds the livery UVs, shrinks the textures and records the axles, wheel size, cabin and belt line that `car.js` uses for the wheels, crew, decals and cameras. Each pack is its own static resource and must stay under 5 MB; the build warns when one is too big, and it regenerates `kits.js`, each pack's `CREDITS.txt` and metadata, and the pack URLs in the Visualforce page.

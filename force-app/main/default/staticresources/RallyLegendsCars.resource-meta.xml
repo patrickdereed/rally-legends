@@ -2,5 +2,5 @@
 <StaticResource xmlns="http://soap.sforce.com/2006/04/metadata">
     <cacheControl>Private</cacheControl>
     <contentType>application/zip</contentType>
-    <description>Rally Legends modelled car bodies (GLB, CC-BY, see CREDITS.txt) loaded by the RallyLegends Visualforce page.</description>
+    <description>Rally Legends modelled car bodies, pack 1 (GLB, CC BY 4.0, see CREDITS.txt), loaded by the RallyLegends Visualforce page.</description>
 </StaticResource>

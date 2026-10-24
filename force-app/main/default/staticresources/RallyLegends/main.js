@@ -59,7 +59,7 @@ function init() {
   document.addEventListener("visibilitychange", () => { if (document.hidden && app.race && !app.paused && app.race.phase !== "finished") app.ui.pauseMenu(app.race); });
   if (window.speechSynthesis) { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; }
   // modelled bodies load in the background; the showroom swaps them in when they arrive
-  app.kitsReady = loadCarKits(window.RL_CARS, [...new Set(CARS.filter(c => c.mesh).map(c => c.mesh))]).then(() => app.showroom.refresh());
+  app.kitsReady = loadCarKits([...new Set(CARS.filter(c => c.mesh).map(c => c.mesh))]).then(() => app.showroom.refresh());
   app.ui.go("title");
   requestAnimationFrame(loop);
 }

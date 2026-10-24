@@ -90,6 +90,17 @@ export const CARS = [
     livery: { design: "slashes", colors: ["#f5f5f3", "#1d3f9c", "#e2b821"], number: 5, rim: "white" }
   },
   {
+    id: "asti", cls: "GB", name: "Asti S4", maker: "Lanza", year: 1986, price: 120000, mesh: "asti",
+    blurb: "A boxy five-door shape over a mid-mounted engine with both a turbo and a supercharger. Pulls hard from low revs and keeps pulling.",
+    hp: 480, mass: 890, drive: "AWD", awdRear: 0.65, cgFront: 0.42, wheelbase: 2.5, track: 1.5, hCG: 0.46, cdA: 0.76, clA: 0.5,
+    cyl: 4, rpmIdle: 1100, rpmMax: 8000, gears: 5, gearTop: 58, grip: 1.0, brake: 1.0, steerMax: 0.57, turbo: { lag: 0.3, depth: 0.3 }, hybridKw: 0, shiftT: 0.2,
+    body: { L: 3.9, W: 1.84, wheelR: 0.3, wheelW: 0.23, axF: 0.72,
+      low: [[0, 0.88, 0.24, 0.56], [0.05, 0.98, 0.22, 0.72], [0.3, 1, 0.2, 0.86], [0.85, 1, 0.2, 0.9], [0.98, 0.98, 0.24, 0.82], [1, 0.9, 0.28, 0.72]],
+      cab: { t0: 0.26, r0: 0.4, r1: 0.84, t1: 0.95, roofY: 1.38, hwBot: 0.9, hwTop: 0.76, roofDrop: 0.03 },
+      rim: "turbine", flares: 2, wing: "roof", lamps: "pod4", lights: "rect" },
+    livery: { design: "tristripe", colors: ["#f5f5f3", "#12306b", "#c8141c"], number: 4, rim: "white" }
+  },
+  {
     id: "pleiad", cls: "WRC", name: "Pleiad WRX '98", maker: "Pleiad", year: 1998, price: 210000, mesh: "toyama",
     blurb: "Flat-four rumble, gold wheels and a chassis that does what you ask. The benchmark of its era.",
     hp: 300, mass: 1230, drive: "AWD", awdRear: 0.55, cgFront: 0.57, wheelbase: 2.52, track: 1.5, hCG: 0.46, cdA: 0.8, clA: 0.9,

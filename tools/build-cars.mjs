@@ -1,4 +1,6 @@
-// Converts the CC-BY source models in models-src/ into game-ready GLBs in the RallyLegendsCars static resource.
+// Converts the CC-BY source models in models-src/ into game-ready GLBs in the RallyLegendsCars* static resources
+// (each zip must stay under 5 MB, so models are split into numbered packs), then writes kits.js (model -> pack),
+// each pack's CREDITS.txt and resource metadata, and the pack URLs in the Visualforce page.
 //   cd tools && npm install && cd .. && node tools/build-cars.mjs [name ...]
 // Sources (see CREDITS.md for where each one comes from) go in models-src/<name>/source.glb, which isn't committed.
 // Each model is flattened into car space (x = left, y = up from the ground, z = forward), its wheels and callipers
@@ -14,16 +16,23 @@ import { flatten, join, dedup, prune, quantize, textureCompress, clearNodeTransf
 import sharp from "sharp";
 
 const root = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), "..");
-const OUT = path.join(root, "force-app/main/default/staticresources/RallyLegendsCars");
+const SR = path.join(root, "force-app/main/default/staticresources");
+const packName = n => "RallyLegendsCars" + (n > 1 ? n : "");
+const DZ = "Daniel Zhabotinsky", DZU = "https://sketchfab.com/DanielZhabotinsky";
+const sf = uid => "https://sketchfab.com/3d-models/" + uid;
 
 // fwd: which source axis is the front of the car; scale, plus zs to stretch the length; drop: extra node names to remove.
 const MODELS = {
-  thunderbolt: { fwd: "+x", scale: 1, paint: ["thunderbolt96_body"] },
+  thunderbolt: { pack: 1, fwd: "+x", scale: 1, paint: ["thunderbolt96_body"],
+    credit: ["Thunderbolt '96 - Low poly model", DZ, sf("thunderbolt-96-low-poly-model-25a4ff2002834ec1b4441c57ecd7ca9f")] },
   // headlamp units are part of shared trim meshes here: split out the triangles inside the lamp box (|x|, y, z)
-  toyama: { fwd: "+z", scale: 1, paint: ["Body_Paint"], brake: /Glass_Body_Glass_Red/, steer: 0.37,
-    headBox: { mats: /^(Textures|Body_Chrome)$/, min: [0.3, 0.6, 1.75], max: [0.9, 0.9, 2.3] } },
-  asti: { fwd: "+x", scale: 1, paint: ["APGRPA89_Bodymat"], spare: true }, // downloaded, not used by a car yet
-  mv6: { fwd: "+x", scale: 1.1, zs: 1.08, paint: ["PlaceholderMV683_Bodymat"] }
+  toyama: { pack: 1, fwd: "+z", scale: 1, paint: ["Body_Paint"], brake: /Glass_Body_Glass_Red/, steer: 0.37,
+    headBox: { mats: /^(Textures|Body_Chrome)$/, min: [0.3, 0.6, 1.75], max: [0.9, 0.9, 2.3] },
+    credit: ["Generic Toyama XR Sedan", "mk2design", sf("generic-toyama-xr-sedan-a161542c38ac44fca3b1c283f6d986bb")] },
+  mv6: { pack: 1, fwd: "+x", scale: 1.1, zs: 1.08, paint: ["PlaceholderMV683_Bodymat"], note: "scaled up 10% and lengthened 8%",
+    credit: ["Placeholder MV6 '83 - Low poly model", DZ, sf("placeholder-mv6-83-low-poly-model-d78bdfc34e024ac7926853f9ae863190")] },
+  asti: { pack: 2, fwd: "+x", scale: 1, paint: ["APGRPA89_Bodymat"],
+    credit: ["Asti Stradale '89 - Low poly model", DZ, sf("asti-stradale-89-low-poly-model-97b15b067111443ebe05840137b49c65")] }
 };
 const DROP = /WheelStock|WheelSport|(^|_)Wheel_(FL|FR|RL|RR)|Caliper|Shadow/i;
 const WHEEL = /(WheelStock|WheelSport|(^|_)Wheel)_(FL|FR|RL|RR)/i;
@@ -183,10 +192,41 @@ async function build(name) {
     quantize({ pattern: /^(NORMAL|TEXCOORD_\d+)$/ }),
     prune({ keepAttributes: true }), dedup({ keepUniqueNames: true })
   );
+  const OUT = path.join(SR, packName(cfg.pack));
   fs.mkdirSync(OUT, { recursive: true });
+  for (const p of fs.readdirSync(SR)) if (/^RallyLegendsCars\d*$/.test(p) && p !== packName(cfg.pack)) fs.rmSync(path.join(SR, p, name + ".glb"), { force: true });
   const out = path.join(OUT, name + ".glb");
   await io.write(out, doc);
   console.log(name, (fs.statSync(out).size / 1024 / 1024).toFixed(2) + " MB", JSON.stringify(meta));
 }
 
-for (const n of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(MODELS).filter(k => !MODELS[k].spare)) await build(n);
+// kits.js, per-pack credits and metadata, and the pack URLs in the page
+function writePacks() {
+  const packs = [...new Set(Object.values(MODELS).map(m => m.pack))].sort((a, b) => a - b);
+  for (const n of packs) {
+    const dir = path.join(SR, packName(n)), names = Object.keys(MODELS).filter(k => MODELS[k].pack === n);
+    const size = names.reduce((s, k) => s + (fs.existsSync(path.join(dir, k + ".glb")) ? fs.statSync(path.join(dir, k + ".glb")).size : 0), 0);
+    if (size > 4.8 * 1024 * 1024) console.warn("!! " + packName(n) + " is " + (size / 1048576).toFixed(2) + " MB; move a model to another pack");
+    fs.writeFileSync(path.join(dir, "CREDITS.txt"), "Rally Legends - modelled car bodies\n\nAdapted from models shared on Sketchfab under Creative Commons Attribution 4.0\n(https://creativecommons.org/licenses/by/4.0/).\n\n" +
+      names.map(k => { const [t, a, u] = MODELS[k].credit; return `${k}.glb  "${t}" by ${a}\n  ${u}`; }).join("\n") +
+      "\n\nChanges: converted to car space, wheels and brake callipers removed, lamp materials separated, livery UVs added,\ntextures resized and re-encoded as WebP" +
+      names.filter(k => MODELS[k].note).map(k => "; " + k + " " + MODELS[k].note).join("") + ".\n");
+    fs.writeFileSync(path.join(SR, packName(n) + ".resource-meta.xml"), `<?xml version="1.0" encoding="UTF-8"?>
+<StaticResource xmlns="http://soap.sforce.com/2006/04/metadata">
+    <cacheControl>Private</cacheControl>
+    <contentType>application/zip</contentType>
+    <description>Rally Legends modelled car bodies, pack ${n} (GLB, CC BY 4.0, see CREDITS.txt), loaded by the RallyLegends Visualforce page.</description>
+</StaticResource>
+`);
+    console.log(packName(n), (size / 1048576).toFixed(2) + " MB", names.join(", "));
+  }
+  fs.writeFileSync(path.join(SR, "RallyLegends/kits.js"), "// Generated by tools/build-cars.mjs: which static resource holds each modelled body.\nexport const KIT_PACKS = " +
+    JSON.stringify(Object.fromEntries(Object.keys(MODELS).map(k => [k, packName(MODELS[k].pack)])), null, 1).replace(/\n/g, "") + ";\n");
+  const page = path.join(root, "force-app/main/default/pages/RallyLegends.page");
+  const src = fs.readFileSync(page, "utf8").replace(/window\.RL_CARS = [^\n]*\n|window\.RL_RES = \{[^}]*\};\n/, "");
+  const res = "window.RL_RES = { " + packs.map(n => `${packName(n)}: '{!URLFOR($Resource.${packName(n)})}'`).join(", ") + " };\n";
+  fs.writeFileSync(page, src.replace("</script>\n<script type=\"module\"", res + "</script>\n<script type=\"module\""));
+}
+
+for (const n of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(MODELS)) await build(n);
+writePacks();
