@@ -2,7 +2,7 @@
 
 ## Car models
 
-All twelve cars use modelled bodies made by other artists and shared on Sketchfab under
+All fifteen cars use modelled bodies made by other artists and shared on Sketchfab under
 [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Thank you to the authors.
 
 | In the game | Model | Author |
@@ -19,11 +19,14 @@ All twelve cars use modelled bodies made by other artists and shared on Sketchfa
 | Eagle Turbo GT-R | [Eagle Turbo '92 - Retro Style Model](https://sketchfab.com/3d-models/eagle-turbo-92-retro-style-model-eb7d6c072bf54d9ba6a48f6d49e6abeb) | [Daniel Zhabotinsky](https://sketchfab.com/DanielZhabotinsky) |
 | Kaze R1 Hybrid | [Stinger '96 - Low Poly model](https://sketchfab.com/3d-models/stinger-96-low-poly-model-a9832fee5393460baf1675fade6f2f25) | [Daniel Zhabotinsky](https://sketchfab.com/DanielZhabotinsky) |
 | Ferox Rally1 Hybrid | [Urban '10 - Low poly model](https://sketchfab.com/3d-models/urban-10-low-poly-model-2866efdfa943484391ef8313768e074d) | [Daniel Zhabotinsky](https://sketchfab.com/DanielZhabotinsky) |
+| Alpenne A110 1800 | [Renault Alpine A110 lowPoly](https://sketchfab.com/3d-models/renault-alpine-a110-lowpoly-d39c04955c784d02acc09c159e0b6a82) | [DINmatin](https://sketchfab.com/DINmatin) |
+| Vierring Quattro S1 E2 | [Audi Quattro S1](https://sketchfab.com/3d-models/audi-quattro-s1-402697365eaa41a68a543b71d0e0bfa8) | [TonyWony](https://sketchfab.com/TonyWony) |
+| Lanza Rallye 037 | [83' Lancia Rallye 037 (Martini Livery)](https://sketchfab.com/3d-models/83-lancia-rallye-037-martini-livery-97629bcffa3442e08e094e93093d3676) | [ashminggu](https://sketchfab.com/ashminggu) |
 
 Changes made for the game (by `tools/build-cars.mjs`): the models were converted to car space, their wheels and
 brake callipers were removed (the game draws its own), lamp parts were given separate materials, a second UV set
 was added for the liveries, textures were resized and re-encoded as WebP, the MV6 was scaled up 10% and
-lengthened 8%, the Doutrive scaled to 88%, the Stinger up 6% and the Eagle to 95%, and off-centre models were centred. In the game the paint is replaced by the player's livery, and number boards, stickers, crew and mud
+lengthened 8%, the Doutrive scaled to 88%, the Stinger up 6% and the Eagle to 95%, and off-centre models were centred. The A110, Quattro and 037 keep their original textures, including the real liveries and marks on them; their wheels were found from the geometry and cut out. On every other car the paint is replaced by the player's livery, and number boards, stickers, crew and mud
 flaps are added.
 
 ## Code and fonts

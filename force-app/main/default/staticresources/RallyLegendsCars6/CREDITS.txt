@@ -1,0 +1,14 @@
+Rally Legends - modelled car bodies
+
+Adapted from models shared on Sketchfab under Creative Commons Attribution 4.0
+(https://creativecommons.org/licenses/by/4.0/).
+
+quattro.glb  "Audi Quattro S1" by TonyWony
+  https://sketchfab.com/3d-models/audi-quattro-s1-402697365eaa41a68a543b71d0e0bfa8
+l037.glb  "83' Lancia Rallye 037 (Martini Livery)" by ashminggu
+  https://sketchfab.com/3d-models/83-lancia-rallye-037-martini-livery-97629bcffa3442e08e094e93093d3676
+a110.glb  "Renault Alpine A110 lowPoly" by DINmatin
+  https://sketchfab.com/3d-models/renault-alpine-a110-lowpoly-d39c04955c784d02acc09c159e0b6a82
+
+Changes: converted to car space, wheels and brake callipers removed, lamp materials separated, livery UVs added,
+textures resized and re-encoded as WebP.

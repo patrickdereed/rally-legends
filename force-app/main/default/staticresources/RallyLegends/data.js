@@ -46,6 +46,17 @@ export const CARS = [
     livery: { design: "stripes", colors: ["#2b5d8c", "#f1ece0", "#151515"], number: 11, rim: "silver" }
   },
   {
+    id: "a110", cls: "H", name: "Alpenne A110 1800", maker: "Alpenne", year: 1971, price: 17500, mesh: "a110", fixedLivery: true,
+    blurb: "Rear-engined, featherweight and low as a skate, in its works blue. Rotates beautifully and punishes a lift mid-corner.",
+    hp: 112, mass: 760, drive: "RWD", cgFront: 0.38, wheelbase: 2.1, track: 1.3, hCG: 0.42, cdA: 0.52, clA: 0,
+    cyl: 4, rpmIdle: 950, rpmMax: 7400, gears: 5, gearTop: 49, grip: 0.915, brake: 0.88, steerMax: 0.6, turbo: null, hybridKw: 0, shiftT: 0.28,
+    body: { L: 3.85, W: 1.56, wheelR: 0.28, wheelW: 0.17, axF: 0.8,
+      low: [[0, 0.6, 0.26, 0.44], [0.08, 0.9, 0.22, 0.587], [0.3, 1, 0.2, 0.735], [0.75, 1, 0.2, 0.795], [0.95, 0.95, 0.25, 0.727], [1, 0.8, 0.3, 0.6]],
+      cab: { t0: 0.275, r0: 0.5, r1: 0.64, t1: 0.98, roofY: 1.1, hwBot: 0.9, hwTop: 0.7, roofDrop: 0 },
+      rim: "minilite", flares: 0, wing: "none", lamps: "pod2", lights: "round" },
+    livery: { design: "solid", colors: ["#2a62b8", "#f2f2f2", "#111111"], number: 1, rim: "silver" }
+  },
+  {
     id: "pennine", cls: "G4", name: "Pennine RS1800", maker: "Albion", year: 1977, price: 38000, mesh: "doutrive",
     blurb: "The privateer's favourite: simple, tough, front-engined and always sideways. Forgiving at the limit.",
     hp: 245, mass: 960, drive: "RWD", cgFront: 0.53, wheelbase: 2.4, track: 1.36, hCG: 0.5, cdA: 0.72, clA: 0,
@@ -79,6 +90,17 @@ export const CARS = [
     livery: { design: "slashes", colors: ["#f5f5f3", "#1d3f9c", "#e2b821"], number: 5, rim: "white" }
   },
   {
+    id: "quattro", cls: "GB", name: "Vierring Quattro S1 E2", maker: "Vierring", year: 1985, price: 118000, mesh: "quattro", fixedLivery: true,
+    blurb: "Five cylinders, a turbo the size of a bucket, four-wheel drive and a wing like a shelf. Lag, then a wall of thrust.",
+    hp: 520, mass: 1100, drive: "AWD", awdRear: 0.5, cgFront: 0.6, wheelbase: 2.22, track: 1.52, hCG: 0.48, cdA: 0.82, clA: 0.6,
+    cyl: 5, rpmIdle: 1100, rpmMax: 8000, gears: 5, gearTop: 59, grip: 1.0, brake: 1.0, steerMax: 0.56, turbo: { lag: 0.75, depth: 0.55 }, hybridKw: 0, shiftT: 0.2,
+    body: { L: 4.24, W: 1.7, wheelR: 0.3, wheelW: 0.21, axF: 1.02,
+      low: [[0, 0.85, 0.22, 0.5], [0.08, 0.98, 0.18, 0.707], [0.3, 1, 0.18, 0.855], [0.8, 1, 0.18, 0.875], [0.97, 0.98, 0.22, 0.808], [1, 0.9, 0.3, 0.72]],
+      cab: { t0: 0.295, r0: 0.45, r1: 0.66, t1: 0.8, roofY: 1.33, hwBot: 0.9, hwTop: 0.74, roofDrop: 0.03 },
+      rim: "turbine", flares: 2, wing: "gb", lamps: "pod2", lights: "rect" },
+    livery: { design: "split", colors: ["#f4f4f1", "#e4b21c", "#c3202a"], number: 1, rim: "white" }
+  },
+  {
     id: "asti", cls: "GB", name: "Asti S4", maker: "Lanza", year: 1986, price: 120000, mesh: "asti",
     blurb: "A boxy five-door shape over a mid-mounted engine with both a turbo and a supercharger. Pulls hard from low revs and keeps pulling.",
     hp: 480, mass: 890, drive: "AWD", awdRear: 0.65, cgFront: 0.42, wheelbase: 2.5, track: 1.5, hCG: 0.46, cdA: 0.76, clA: 0.5,
@@ -88,6 +110,17 @@ export const CARS = [
       cab: { t0: 0.26, r0: 0.4, r1: 0.84, t1: 0.95, roofY: 1.38, hwBot: 0.9, hwTop: 0.76, roofDrop: 0.03 },
       rim: "turbine", flares: 2, wing: "roof", lamps: "pod4", lights: "rect" },
     livery: { design: "tristripe", colors: ["#f5f5f3", "#12306b", "#c8141c"], number: 4, rim: "white" }
+  },
+  {
+    id: "l037", cls: "GB", name: "Lanza Rallye 037", maker: "Lanza", year: 1983, price: 108000, mesh: "l037", fixedLivery: true,
+    blurb: "The last two-wheel-drive car to win the world title. Mid-mounted supercharged four: no lag, instant response, and a tail you steer with your right foot.",
+    hp: 520, mass: 910, drive: "RWD", cgFront: 0.42, wheelbase: 2.3, track: 1.52, hCG: 0.44, cdA: 0.72, clA: 0.65,
+    cyl: 4, rpmIdle: 1100, rpmMax: 8000, gears: 5, gearTop: 57, grip: 1.07, brake: 1.02, steerMax: 0.58, turbo: null, hybridKw: 0, shiftT: 0.2,
+    body: { L: 3.89, W: 1.85, wheelR: 0.34, wheelW: 0.3, axF: 0.74,
+      low: [[0, 0.72, 0.24, 0.38], [0.1, 0.92, 0.2, 0.565], [0.3, 1, 0.18, 0.735], [0.8, 1, 0.18, 0.795], [0.97, 0.96, 0.22, 0.728], [1, 0.9, 0.28, 0.64]],
+      cab: { t0: 0.26, r0: 0.45, r1: 0.66, t1: 0.86, roofY: 1.2, hwBot: 0.9, hwTop: 0.7, roofDrop: 0.02 },
+      rim: "turbine", flares: 2, wing: "roof", lamps: "pod4", lights: "rect" },
+    livery: { design: "stripes", colors: ["#f4f4f1", "#1b3f8f", "#d3262d"], number: 4, rim: "white" }
   },
   {
     id: "fairheaven", cls: "GB", name: "Fairheaven SW Turbo 4x4", maker: "Fairheaven", year: 1984, price: 98000, mesh: "fairheaven",

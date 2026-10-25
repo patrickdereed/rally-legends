@@ -48,8 +48,49 @@ const MODELS = {
   fairheaven: { pack: 5, fwd: "+x", scale: 1, paint: ["Fairheaven_LT80_Bodymat"],
     credit: ["Fairheaven SW '84 - Low poly model", DZ, sf("fairheaven-sw-84-low-poly-model-aa0becb6e854422596cac6b21bf79787")] },
   sanremo: { pack: 5, fwd: "+x", scale: 1, paint: ["Sanremo70_Bodymat"],
-    credit: ["Sanremo '70 - Low poly model", DZ, sf("sanremo-70-low-poly-model-b2261c471645417a8b7e5882d541c248")] }
+    credit: ["Sanremo '70 - Low poly model", DZ, sf("sanremo-70-low-poly-model-b2261c471645417a8b7e5882d541c248")] },
+  // Single-texture models that keep their own livery (fixed: no paint material). Wheels are found from the
+  // geometry (autoWheels) and cut out; body measurements use bodyMat, and anything the geometry can't tell
+  // (glass, belt line) comes from meta.
+  quattro: { pack: 6, fwd: "-z", scale: 0.00937, paint: [], fixed: true, autoWheels: true, bodyMat: /^Audi$/,
+    meta: { belt: 0.9, screenBase: 0.6, screenTop: 0.22, rearTop: -1.08, rearBase: -1.3, hoodY: 0.92 },
+    credit: ["Audi Quattro S1", "TonyWony", sf("audi-quattro-s1-402697365eaa41a68a543b71d0e0bfa8")] },
+  l037: { pack: 6, fwd: "-z", scale: 0.7583, paint: [], fixed: true, autoWheels: true, bodyMat: /^material_0$/,
+    meta: { belt: 0.83, screenBase: 0.6, screenTop: 0.1, rearTop: -0.76, rearBase: -1.0, hoodY: 0.8 },
+    credit: ["83' Lancia Rallye 037 (Martini Livery)", "ashminggu", sf("83-lancia-rallye-037-martini-livery-97629bcffa3442e08e094e93093d3676")] },
+  a110: { pack: 6, fwd: "+z", scale: 0.762, paint: [], fixed: true, autoWheels: true, bodyMat: /^chassis$/, glass: /^glas$/,
+    credit: ["Renault Alpine A110 lowPoly", "DINmatin", sf("renault-alpine-a110-lowpoly-d39c04955c784d02acc09c159e0b6a82")] }
 };
+
+// Wheels from geometry: the lowest points give each wheel's contact patch, a circle fitted through the
+// tread (it must touch the ground) gives the radius, and every triangle inside the tyre's cylinder is cut.
+function cutWheels(scene, wheels) {
+  const all = [];
+  for (const node of scene.listChildren()) for (const prim of node.getMesh().listPrimitives()) eachVertex(prim, v => all.push([...v]));
+  const minY = Math.min(...all.map(p => p[1]));
+  const low = all.filter(p => p[1] < minY + 0.03), q = { FL: [], FR: [], RL: [], RR: [] };
+  for (const p of low) q[(p[2] > 0 ? "F" : "R") + (p[0] > 0 ? "L" : "R")].push(p);
+  const cyl = {};
+  for (const [k, ps] of Object.entries(q)) {
+    if (!ps.length) throw new Error("autoWheels: no contact patch " + k);
+    const cx = ps.reduce((a, p) => a + p[0], 0) / ps.length, cz = ps.reduce((a, p) => a + p[2], 0) / ps.length;
+    const sl = all.filter(p => Math.abs(p[0] - cx) < 0.22 && Math.abs(p[2] - cz) < 0.5 && p[1] < minY + 0.9);
+    let best = 0, r = 0.3;
+    for (let R = 0.2; R <= 0.42; R += 0.002) { const n = sl.filter(p => Math.abs(Math.hypot(p[1] - minY - R, p[2] - cz) - R) < 0.006).length; if (n > best) { best = n; r = R; } }
+    const ring = all.filter(p => { const d = Math.hypot(p[1] - minY - r, p[2] - cz); return d > r * 0.85 && d < r * 1.01 && Math.abs(p[0] - cx) < 0.25; }).map(p => p[0]).sort((a, b) => a - b);
+    const x0 = ring[Math.floor(ring.length * 0.03)], x1 = ring[Math.floor(ring.length * 0.97)];
+    cyl[k] = { cx: (x0 + x1) / 2, cy: minY + r, cz, r, w: x1 - x0 };
+  }
+  // cut triangles whose vertices are all inside a tyre cylinder (rims, tyres, discs, callipers)
+  const inside = v => Object.values(cyl).some(c => Math.abs(v[0] - c.cx) < c.w / 2 + 0.03 && Math.hypot(v[1] - c.cy, v[2] - c.cz) < c.r * 1.02);
+  for (const node of scene.listChildren()) for (const prim of node.getMesh().listPrimitives()) {
+    const pos = prim.getAttribute("POSITION"), idx = prim.getIndices(); if (!idx) continue;
+    const arr = idx.getArray(), keep = [], a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0];
+    for (let t = 0; t < arr.length; t += 3) { pos.getElement(arr[t], a); pos.getElement(arr[t + 1], b); pos.getElement(arr[t + 2], c); if (!(inside(a) && inside(b) && inside(c))) keep.push(arr[t], arr[t + 1], arr[t + 2]); }
+    idx.setArray(new arr.constructor(keep));
+  }
+  for (const [k, c] of Object.entries(cyl)) for (const sx of [-1, 1]) for (const sy of [-1, 1]) wheels[k].push([c.cx + sx * c.w / 2, c.cy + sy * c.r, c.cz]);
+}
 const DROP = /WheelStock|WheelSport|WheelTuned|(^|_)Wheel_(FL|FR|RL|RR)|Caliper|Shadow/i;
 const WHEEL = /(WheelStock|WheelSport|WheelTuned|(^|_)Wheel)_(FL|FR|RL|RR)/i;
 const HEAD = /(Headlights|Rallylights_Headlights|Foglights)\d*_UCB_Lights_and_Glass_0$|^Glass_Headlights_gt1/i;
@@ -98,6 +139,7 @@ async function build(name) {
     if (w && mesh && !/Caliper/i.test(nm)) for (const prim of mesh.listPrimitives()) eachVertex(prim, v => wheels[w[3].toUpperCase()].push([...v]));
     if (DROP.test(nm) || (cfg.drop && cfg.drop.test(nm)) || !mesh) { node.dispose(); continue; }
   }
+  if (cfg.autoWheels) cutWheels(scene, wheels);
   // centre the car: wheels straddle x = 0, body ends equidistant from z = 0 (some sources sit off to one side)
   {
     const wp = Object.values(wheels).flat();
@@ -157,7 +199,7 @@ async function build(name) {
   // ---- measurements in car space ----
   const allPaint = [], glass = [], all = [];
   for (const mesh of R.listMeshes()) for (const prim of mesh.listPrimitives()) {
-    const mat = prim.getMaterial(), isPaint = mat.getName() === "paint";
+    const mat = prim.getMaterial(), isPaint = mat.getName() === "paint" || !!(cfg.bodyMat && cfg.bodyMat.test(mat.getName()));
     const isGlass = cfg.glass ? cfg.glass.test(mat.getName()) : mat.getAlphaMode() === "BLEND" && /glass|transperent|^glas$/i.test(mat.getName()) && !/lamp/i.test(mat.getName());
     eachVertex(prim, (v, n) => { all.push([...v]); if (isPaint) allPaint.push([...v]); if (isGlass) glass.push([...v, ...n]); });
   }
@@ -214,7 +256,8 @@ async function build(name) {
     zF: r3(zF), zR: r3(zR), wheelR: r3(wheelR), wheelW: r3(wheelW), track: r3(track),
     nose: r3(zNose), tail: r3(zTail), hw: r3(hwMax), sill: r3(sill), belt: r3(belt), roofY: r3(roofY),
     screenBase: r3(screenBase), screenTop: r3(screenTop), rearTop: r3(rearTop), rearBase: r3(rearBase), hoodY: r3(hoodY), steerX: r3(steerX),
-    wheels: Object.fromEntries(Object.keys(wheels).map((k, i) => [k, W[i].c.map(r3)]))
+    wheels: Object.fromEntries(Object.keys(wheels).map((k, i) => [k, W[i].c.map(r3)])),
+    ...(cfg.fixed ? { fixed: true } : {}), ...(cfg.meta || {})
   };
   scene.setExtras({ rl: meta });
   scene.listChildren().forEach((n, i) => n.setName("part" + i));

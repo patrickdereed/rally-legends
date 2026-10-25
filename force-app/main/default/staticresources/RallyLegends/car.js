@@ -1337,7 +1337,7 @@ export class CarModel {
     if (this.decals) { this.decals.traverse(o => { if (o.isMesh) { if (!o.userData.shared) o.geometry.dispose(); o.material.dispose(); } }); this.body.remove(this.decals); }
     this.decals = new THREE.Group();
     this.body.add(this.decals);
-    if (this.kit) return this.buildKitDecals(livery);
+    if (this.kit) return this.kit.meta.fixed ? null : this.buildKitDecals(livery); // fixed liveries carry their own numbers
     const car = this.car, B = car.body, C = B.cab, L = B.L, er = endR(B), len = L - 2 * er;
     const classic = car.cls === "H" || car.cls === "G4", num = String(livery.number);
     const sponsorA = SPONSORS[hashStr(car.id) % SPONSORS.length], sponsorB = SPONSORS[(hashStr(car.id) >>> 3) % SPONSORS.length];

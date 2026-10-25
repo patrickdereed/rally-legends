@@ -97,7 +97,7 @@ export class UI {
     if (has) this.showCar(this.c.d.selected);
     else this.showCar("asti", CAR_BY_ID.asti.livery, "gold");
     return `<div class="title-screen">
-      <div class="title-logo"><div class="t-kicker">World Rally · 1960 – today</div><h1>RALLY<span>LEGENDS</span></h1><p>Five eras. Twelve legends. Twenty-seven stages against the clock.</p></div>
+      <div class="title-logo"><div class="t-kicker">World Rally · 1960 – today</div><h1>RALLY<span>LEGENDS</span></h1><p>Five eras. Fifteen legends. Twenty-seven stages against the clock.</p></div>
       <div class="title-actions">
         ${has ? `<button class="btn primary big" data-a="continue">Continue career <small>${esc(this.c.d.name)} · level ${this.c.level} · ${fmtCredits(this.c.d.credits)}</small></button>` : ""}
         <button class="btn ${has ? "" : "primary big"}" data-a="go" data-v="newcareer">${has ? "New career" : "Start your career"}</button>
@@ -290,6 +290,7 @@ export class UI {
   }
   liveryTab(id, preview) {
     const c = this.c, g = c.d.garage[id], car = CAR_BY_ID[id];
+    if (car.fixedLivery) return `<p class="muted">The ${esc(car.name)} runs its original works livery. Wheels can still be changed.</p>`;
     const sel = preview && preview.key ? preview.key : g.livery.key;
     const sw = cols => `<span class="sw">${cols.map(col => `<i style="background:${col}"></i>`).join("")}</span>`;
     const card = (key, name, cols, cost, rep) => {
