@@ -5,6 +5,7 @@
 // into the RallyLegendsCars resource); wheels, liveries, decals, crew and lamps still come from here.
 import * as THREE from "./three.module.min.js";
 import { GLTFLoader } from "./GLTFLoader.js";
+import * as BufferGeometryUtils from "./BufferGeometryUtils.js";
 import { KIT_PACKS } from "./kits.js";
 import { LIVERY_BY_ID, RIM_BY_ID, SPONSORS } from "./data.js";
 import { makeRng, hashStr, clamp, lerp, smoothstep } from "./util.js";
@@ -276,7 +277,7 @@ const BOXY_BONNET = [[0, 0], [0.82, 0], [0.95, 0.015], [0.99, 0.08], [1.0, 0.5],
 
 // Body ends are rounded with this radius; stations map onto the length inside the round-overs.
 // Boxy cars (Mini, Escort, Quattro, 205, Evo, Impreza) have crisp corners; the Alpine, Stratos and modern cars are curvier.
-const BOXY = { mosquito: 1, pennine: 1, vierring: 1, lionne: 0.8, ronin: 0.9, pleiad: 0.6 };
+const BOXY = { mosquito: 1, pennine: 1, lionne: 0.8, ronin: 0.9, pleiad: 0.6 };
 export function boxiness(car) { return BOXY[car.id] || 0; }
 export function endR(B) { return B._endR != null ? B._endR : 0.11; }
 export function zOf(t, L, er = 0.11) { return (L / 2 - er) - t * (L - 2 * er); }
@@ -551,13 +552,13 @@ function tireTexture(level = 3) {
 // Brake looks by upgrade level (Stock -> Legend): bigger discs, then slotted and drilled faces,
 // and larger, brighter callipers.
 export const BRAKE_LOOK = [
-  { name: "Stock", face: "plain", disc: 1.0, cal: 1.0, color: null },
-  { name: "Street", face: "plain", disc: 1.03, cal: 1.06, color: "#2a2a2c" },
-  { name: "Sport", face: "vented", disc: 1.06, cal: 1.12, color: "#c8141c" },
-  { name: "Rally", face: "slotted", disc: 1.09, cal: 1.2, color: "#c8141c" },
-  { name: "Pro", face: "drilled", disc: 1.12, cal: 1.28, color: "#e0b11c" },
-  { name: "Works", face: "drilled", disc: 1.14, cal: 1.36, color: "#ff6a00" },
-  { name: "Legend", face: "drilled", disc: 1.16, cal: 1.44, color: "#d9a93a", legend: true },
+  { name: "Stock", face: "plain", disc: 1.0, cal: 1.0, color: null, pistons: 1 },
+  { name: "Street", face: "plain", disc: 1.03, cal: 1.06, color: "#2a2a2c", pistons: 1 },
+  { name: "Sport", face: "vented", disc: 1.06, cal: 1.12, color: "#c8141c", pistons: 4 },
+  { name: "Rally", face: "slotted", disc: 1.09, cal: 1.2, color: "#c8141c", pistons: 4 },
+  { name: "Pro", face: "drilled", disc: 1.12, cal: 1.28, color: "#e0b11c", pistons: 6 },
+  { name: "Works", face: "drilled", disc: 1.14, cal: 1.36, color: "#ff6a00", pistons: 6 },
+  { name: "Legend", face: "drilled", disc: 1.16, cal: 1.44, color: "#d9a93a", legend: true, pistons: 6 },
 ];
 function discTexture(face) {
   return canvasTexture("disc_" + face, 256, 256, (x, w) => {
@@ -579,6 +580,57 @@ function discTexture(face) {
     }
   });
 }
+// A brake calliper hugging the disc edge, built around the disc centre with the wheel axis along x and +x
+// facing out of the wheel (mirror it for the other side). rD: disc radius; rMax: room inside the rim barrel.
+// One piston: a sliding calliper (cast body, piston housing on the inboard half, thin finger plate outboard).
+// Four or six: a fixed calliper with matching halves, piston bulges on the outboard face and a bridge over
+// the disc. Body faces are rounded with an extrusion bevel.
+const calGeoCache = new Map();
+function caliperParts(rD, rMax, pistons) {
+  const key = [rD, rMax, pistons].map(v => v.toFixed(4)).join(":");
+  if (calGeoCache.has(key)) return calGeoCache.get(key);
+  const fixed = pistons > 1, half = fixed ? (pistons > 4 ? 0.7 : 0.55) : 0.42;
+  const r1 = Math.min(rD * 1.12, rMax), r0 = rD * (fixed ? 0.6 : 0.64), rB = Math.min(rD * 1.16, rMax + 0.004);
+  const sector = (ra, rb, th, depth, x0) => {
+    const sh = new THREE.Shape(), a0 = Math.PI / 2 - th, a1 = Math.PI / 2 + th, cap = (rb - ra) / 2, rm = (ra + rb) / 2;
+    sh.absarc(0, 0, rb, a0, a1, false);
+    sh.absarc(Math.cos(a1) * rm, Math.sin(a1) * rm, cap, a1, a1 + Math.PI, false);
+    sh.absarc(0, 0, ra, a1, a0, true);
+    sh.absarc(Math.cos(a0) * rm, Math.sin(a0) * rm, cap, a0 + Math.PI, a0 + Math.PI * 2, false);
+    const bev = Math.min(0.004, depth * 0.3);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: depth - bev * 2, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * 0.8, bevelSegments: 2, curveSegments: 10 });
+    g.rotateY(Math.PI / 2); g.translate(x0 + bev, 0, 0); // extrusion now runs along +x from x0
+    return g;
+  };
+  const gap = 0.013, tOut = fixed ? 0.024 : 0.012, tIn = fixed ? 0.024 : 0.034;
+  const body = [
+    sector(r0, r1, half, tOut, gap),                        // outboard half (or finger plate)
+    sector(r0, r1, half, tIn, -gap - tIn),                  // inboard half (piston housing on a sliding calliper)
+    sector(rD * 1.0, rB, half * 0.86, gap * 2 + tOut + tIn * 0.6, -gap - tIn * 0.6), // bridge over the disc edge
+  ];
+  const bodyG = BufferGeometryUtils.mergeGeometries(body.map(g => g.toNonIndexed()));
+  // piston bulges: on the outboard face of a fixed calliper, one big boss inboard on a sliding one
+  const bumps = [], pr = fixed ? rD * (pistons > 4 ? 0.12 : 0.14) : rD * 0.22, rm = (r0 + r1) / 2;
+  const n = fixed ? pistons / 2 : 1;
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI / 2 + (n > 1 ? (i / (n - 1) - 0.5) * half * 1.3 : 0);
+    const c = new THREE.CylinderGeometry(pr, pr * 1.05, 0.008, 18); c.rotateZ(Math.PI / 2);
+    c.translate(fixed ? gap + tOut + 0.003 : -gap - tIn - 0.003, Math.sin(a) * rm, Math.cos(a) * rm);
+    bumps.push(c.toNonIndexed());
+  }
+  // mounting bolts at both ends, and a bleed nipple on top
+  const hw = [];
+  for (const sgn of [-1, 1]) {
+    const a = Math.PI / 2 + sgn * half * 0.92, b = new THREE.CylinderGeometry(rD * 0.045, rD * 0.045, 0.006, 6);
+    b.rotateZ(Math.PI / 2); b.translate(gap + tOut + 0.002, Math.sin(a) * rm, Math.cos(a) * rm); hw.push(b.toNonIndexed());
+  }
+  const nip = new THREE.CylinderGeometry(rD * 0.025, rD * 0.025, rD * 0.12, 8);
+  nip.translate(-gap - tIn * 0.5, rB + rD * 0.05, rD * half * 0.4); hw.push(nip.toNonIndexed());
+  const out = { body: bodyG, pistons: BufferGeometryUtils.mergeGeometries(bumps), hardware: BufferGeometryUtils.mergeGeometries(hw) };
+  calGeoCache.set(key, out);
+  return out;
+}
+
 const discMats = {};
 function discMaterial(face) {
   // Lower metalness than real steel so the disc still reads in the shadow inside the wheel.
@@ -771,8 +823,9 @@ export class CarModel {
     const tireG = tireGeometry(V.wheelR, V.wheelW, ratio);
     const rimG = this.rimGeometry(V.wheelR * ratio, V.wheelW);
     const discG = new THREE.CylinderGeometry(V.wheelR * 0.5, V.wheelR * 0.5, 0.024, 28); discG.rotateZ(Math.PI / 2); discG.translate(-V.wheelW * 0.02, 0, 0);
-    const calG = new THREE.BoxGeometry(0.06, V.wheelR * 0.26, V.wheelR * 0.34);
-    this.caliperMat = new THREE.MeshStandardMaterial({ color: this.classCaliper, roughness: 0.4, metalness: 0.3 });
+    this.caliperMat = new THREE.MeshPhysicalMaterial({ color: this.classCaliper, roughness: 0.4, metalness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.35 });
+    this.calSteel = new THREE.MeshStandardMaterial({ color: 0xb9bcc1, roughness: 0.28, metalness: 0.9 });
+    this.calDisc = { r: V.wheelR * 0.5, rMax: V.wheelR * ratio * 0.9, x: V.wheelW * 0.02 };
     for (let i = 0; i < 4; i++) {
       const front = i < 2, left = i % 2 === 0;
       const pivot = new THREE.Group(), spinner = new THREE.Group(), inner = new THREE.Group();
@@ -781,10 +834,12 @@ export class CarModel {
       inner.add(tire, rim, rimDark, rimBright, disc);
       if (!left) inner.rotation.y = Math.PI;
       spinner.add(inner); pivot.add(spinner);
-      // the calliper doesn't rotate with the wheel
-      const cal = new THREE.Mesh(calG, this.caliperMat);
-      cal.position.set((left ? 1 : -1) * V.wheelW * 0.08, V.wheelR * 0.3, (front ? -1 : 1) * V.wheelR * 0.22);
-      cal.userData.base = cal.position.clone();
+      // the calliper doesn't rotate with the wheel: high on the disc, behind the axle at the front and ahead of it
+      // at the rear; built for the left side and mirrored for the right
+      const cal = new THREE.Group();
+      cal.position.x = (left ? -1 : 1) * this.calDisc.x;
+      cal.rotation.x = front ? -0.63 : 0.63;
+      cal.scale.x = left ? 1 : -1;
       pivot.add(cal);
       this.discs.push(disc); this.calipers.push(cal);
       pivot.position.set((left ? 1 : -1) * V.track / 2, V.wheelR, (front ? zF : zR) + this.offset);
@@ -1546,7 +1601,18 @@ export class CarModel {
     this.brakeLevel = l;
     const look = BRAKE_LOOK[l], mat = discMaterial(look.face);
     for (const d of this.discs) { d.material = mat; d.scale.set(1, look.disc, look.disc); }
-    for (const c of this.calipers) { c.scale.set(1, look.cal, look.cal); c.position.copy(c.userData.base).multiply(new THREE.Vector3(1, look.disc, look.disc)); }
+    // stock Group B, WRC and Rally1 cars already run competition callipers
+    const pistons = l === 0 && ["GB", "WRC", "R1"].includes(this.car.cls) ? 4 : look.pistons;
+    const parts = caliperParts(this.calDisc.r * look.disc, this.calDisc.rMax, pistons);
+    for (const c of this.calipers) {
+      c.clear();
+      for (const [g, m] of [[parts.body, this.caliperMat], [parts.pistons, pistons > 1 ? this.caliperMat : this.calCast()], [parts.hardware, this.calSteel]]) {
+        const mesh = new THREE.Mesh(g, this.ghostMat || m); mesh.castShadow = !this.ghostMat; mesh.userData.shared = true; c.add(mesh);
+      }
+    }
+    // a stock sliding calliper is bare cast iron; upgrades are painted
+    if (pistons === 1 && !look.color) { this.caliperMat.color.set(0x5d6066); this.caliperMat.emissive.set(0x1d1e20); this.caliperMat.metalness = 0.55; this.caliperMat.roughness = 0.75; this.caliperMat.clearcoat = 0; return; }
+    this.caliperMat.clearcoat = 0.6;
     this.caliperMat.color.set(look.color || this.classCaliper);
     this.caliperMat.emissive.set(look.color || this.classCaliper); this.caliperMat.emissiveIntensity = 0.22; // visible through the spokes
     this.caliperMat.metalness = look.legend ? 0.55 : 0.2; this.caliperMat.roughness = look.legend ? 0.3 : 0.4;
@@ -1567,8 +1633,9 @@ export class CarModel {
     this.livery = livery;
   }
 
+  calCast() { return (this._calCast ||= new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 0.8, metalness: 0.5 })); }
   makeGhost() {
-    const gm = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.28, depthWrite: false });
+    const gm = this.ghostMat = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.28, depthWrite: false });
     this.root.traverse(o => { if (o.isMesh) { o.material = gm; o.castShadow = false; o.receiveShadow = false; } });
     this.blob.visible = false;
   }

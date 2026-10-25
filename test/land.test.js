@@ -2,7 +2,7 @@ import { LOC_BY_ID, CAR_BY_ID } from "../force-app/main/default/staticresources/
 import { buildStage } from "../force-app/main/default/staticresources/RallyLegends/track.js";
 import { buildSpec, Vehicle, DT } from "../force-app/main/default/staticresources/RallyLegends/physics.js";
 import { Bot } from "../force-app/main/default/staticresources/RallyLegends/bot.js";
-const [locId, carId, pace] = [process.argv[2] || "finland", process.argv[3] || "vierring", +(process.argv[4] || 0.92)];
+const [locId, carId, pace] = [process.argv[2] || "finland", process.argv[3] || "asti", +(process.argv[4] || 0.92)];
 const st = buildStage(LOC_BY_ID[locId], 0, { cell: 6 });
 const v = new Vehicle(buildSpec(CAR_BY_ID[carId], {}, null), st);
 const bot = new Bot(v, pace);

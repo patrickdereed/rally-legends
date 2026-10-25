@@ -4,7 +4,7 @@ import {
   CLASSES, CLASS_BY_ID, CARS, CAR_BY_ID, PART_CATS, PART_LEVELS, PART_LEVEL_COST, PART_BASE_COST, PART_REP_EXTRA, PART_BY_ID,
   LIVERY_BY_ID, LIVERY_BASE_COST, CUSTOM_PAINT_COST, RIMS, RIM_BY_ID, CHAMPIONSHIPS, POINTS, POWER_POINTS, START_CREDITS,
   TIER_PRIZE, TIER_CHAMP, TIER_XP, POS_PRIZE, POS_XP, STAGE_WIN_FRAC, REPAIR_FRAC, xpForLevel, MAX_LEVEL, DIFF_BY_ID,
-  OBJECTIVES, RIVALS, LOC_BY_ID, carsInClass
+  OBJECTIVES, RIVALS, LOC_BY_ID, carsInClass, RETIRED_CARS
 } from "./data.js";
 import { buildSpec, G, torqueCurve } from "./physics.js";
 import { makeRng, hashStr, clamp } from "./util.js";
@@ -49,13 +49,25 @@ export class Career {
     } catch (e) { /* fall through to no save */ }
     return false;
   }
-  // Factory liveries are copied into the save at purchase; refresh ones whose factory colours changed.
+  // Retired cars: each becomes the car that replaced it in its class, keeping its upgrades and damage. If the
+  // save already has that car, the retired one is refunded at its purchase price instead.
   migrate() {
-    const g = this.d.garage && this.d.garage.berlinette;
-    if (g && g.livery && g.livery.key === "factory" && g.livery.colors[0] === "#1f4fa8") {
-      g.livery.colors = CAR_BY_ID.berlinette.livery.colors.slice();
-      this.save();
+    const d = this.d; let changed = false;
+    for (const [old, { now, price }] of Object.entries(RETIRED_CARS)) {
+      const g = d.garage && d.garage[old];
+      if (!g) continue;
+      changed = true;
+      delete d.garage[old];
+      if (d.garage[now]) { d.credits += price; d.log.unshift({ t: Date.now(), n: price, why: "Refund · retired car" }); d.log.length = Math.min(d.log.length, 30); }
+      else {
+        this.addCar(now);
+        Object.assign(d.garage[now], { parts: g.parts, dmg: g.dmg, km: g.km || 0 });
+      }
+      if (d.selected === old) d.selected = now;
+      for (const s of Object.values(d.seasons || {})) if (s && s.carId === old) s.carId = now;
     }
+    if (d.selected && !CAR_BY_ID[d.selected]) { d.selected = Object.keys(d.garage).find(id => CAR_BY_ID[id]); changed = true; }
+    if (changed) this.save();
   }
   save() { if (this.d) safeSet(this.key, JSON.stringify(this.d)); }
   saveSettings() { safeSet(this.settingsKey, JSON.stringify(this.settings)); }
@@ -63,7 +75,7 @@ export class Career {
   importCode(code) {
     const d = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
     if (!d || d.v !== VERSION || !d.garage) throw new Error("That is not a Rally Legends save code.");
-    this.d = d; this.save();
+    this.d = d; this.migrate(); this.save();
   }
   reset() { this.d = null; safeSet(this.key, "null"); }
 

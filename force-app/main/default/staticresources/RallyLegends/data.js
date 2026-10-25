@@ -35,18 +35,7 @@ export const CARS = [
     livery: { design: "roof", colors: ["#b3141c", "#f3efe2", "#151515"], number: 37, rim: "gold" }
   },
   {
-    id: "berlinette", cls: "H", name: "Berlinette 1600 S", maker: "Alpenne", year: 1968, price: 15000, starter: true,
-    blurb: "Rear-engined, featherweight and low as a skate. Rotates beautifully, punishes a lift mid-corner.",
-    hp: 128, mass: 720, drive: "RWD", cgFront: 0.38, wheelbase: 2.1, track: 1.3, hCG: 0.42, cdA: 0.52, clA: 0,
-    cyl: 4, rpmIdle: 950, rpmMax: 7400, gears: 5, gearTop: 49, grip: 0.94, brake: 0.88, steerMax: 0.6, turbo: null, hybridKw: 0, shiftT: 0.28,
-    body: { L: 3.85, W: 1.52, wheelR: 0.29, wheelW: 0.18, axF: 0.85,
-      low: [[0, 0.6, 0.26, 0.44], [0.08, 0.9, 0.22, 0.587], [0.3, 1, 0.2, 0.735], [0.75, 1, 0.2, 0.795], [0.95, 0.95, 0.25, 0.727], [1, 0.8, 0.3, 0.6]],
-      cab: { t0: 0.275, r0: 0.5, r1: 0.64, t1: 0.98, roofY: 1.13, hwBot: 0.9, hwTop: 0.7, roofDrop: 0 , aPil: 0.016, bPil: 0.009 },
-      rim: "minilite", flares: 0, wing: "none", lamps: "pod2", lights: "round" },
-    livery: { design: "solid", colors: ["#c2121b", "#f2f2f2", "#111111"], number: 18, rim: "silver" }
-  },
-  {
-    id: "sialia", cls: "H", name: "Sialia SW 1800", maker: "Sialia", year: 1968, price: 16000, mesh: "sialia",
+    id: "sialia", cls: "H", name: "Sialia SW 1800", maker: "Sialia", year: 1968, price: 16000, starter: true, mesh: "sialia",
     blurb: "A family estate with a twin-cam tuned past sensible. Long roof, short tail, and more grip than it has any right to.",
     hp: 118, mass: 960, drive: "RWD", cgFront: 0.53, wheelbase: 2.41, track: 1.3, hCG: 0.52, cdA: 0.7, clA: 0,
     cyl: 4, rpmIdle: 900, rpmMax: 7000, gears: 5, gearTop: 47, grip: 0.93, brake: 0.88, steerMax: 0.6, turbo: null, hybridKw: 0, shiftT: 0.3,
@@ -55,17 +44,6 @@ export const CARS = [
       cab: { t0: 0.255, r0: 0.42, r1: 0.9, t1: 0.98, roofY: 1.33, hwBot: 0.94, hwTop: 0.76, roofDrop: 0 },
       rim: "minilite", flares: 0, wing: "none", lamps: "pod2", lights: "round" },
     livery: { design: "stripes", colors: ["#2b5d8c", "#f1ece0", "#151515"], number: 11, rim: "silver" }
-  },
-  {
-    id: "stiletto", cls: "G4", name: "Stiletto HF", maker: "Lanza", year: 1974, price: 42000,
-    blurb: "A mid-engined wedge built for one job. Short wheelbase, savage V6 and a tail that wants to lead.",
-    hp: 275, mass: 980, drive: "RWD", cgFront: 0.42, wheelbase: 2.18, track: 1.43, hCG: 0.44, cdA: 0.66, clA: 0.1,
-    cyl: 6, rpmIdle: 1000, rpmMax: 8000, gears: 5, gearTop: 54, grip: 0.98, brake: 0.95, steerMax: 0.58, turbo: null, hybridKw: 0, shiftT: 0.24,
-    body: { L: 3.71, W: 1.75, wheelR: 0.31, wheelW: 0.22, axF: 0.78,
-      low: [[0, 0.72, 0.24, 0.38], [0.1, 0.92, 0.2, 0.565], [0.3, 1, 0.18, 0.735], [0.8, 1, 0.18, 0.795], [0.97, 0.96, 0.22, 0.728], [1, 0.9, 0.28, 0.64]],
-      cab: { t0: 0.155, r0: 0.45, r1: 0.62, t1: 0.82, roofY: 1.11, hwBot: 0.9, hwTop: 0.66, roofDrop: 0.02 , aPil: 0.016, bPil: 0.009 },
-      rim: "minilite", flares: 1, wing: "roof", lamps: "pod4", lights: "none" },
-    livery: { design: "chevron", colors: ["#f4f4f0", "#178a4a", "#d0242c"], number: 1, rim: "gold" }
   },
   {
     id: "pennine", cls: "G4", name: "Pennine RS1800", maker: "Albion", year: 1977, price: 38000, mesh: "doutrive",
@@ -88,17 +66,6 @@ export const CARS = [
       cab: { t0: 0.255, r0: 0.42, r1: 0.66, t1: 0.79, roofY: 1.25, hwBot: 0.94, hwTop: 0.74, roofDrop: 0.02 },
       rim: "minilite", flares: 1, wing: "none", lamps: "pod4", lights: "round" },
     livery: { design: "split", colors: ["#c0161d", "#f3f0e6", "#111111"], number: 9, rim: "white" }
-  },
-  {
-    id: "vierring", cls: "GB", name: "Vierring Quattro S1", maker: "Vierring", year: 1985, price: 115000,
-    blurb: "Five cylinders, a turbo the size of a bucket and four-wheel drive. Lag, then a wall of thrust.",
-    hp: 520, mass: 1100, drive: "AWD", awdRear: 0.5, cgFront: 0.6, wheelbase: 2.22, track: 1.52, hCG: 0.48, cdA: 0.82, clA: 0.6,
-    cyl: 5, rpmIdle: 1100, rpmMax: 8000, gears: 5, gearTop: 59, grip: 1.0, brake: 1.0, steerMax: 0.56, turbo: { lag: 0.75, depth: 0.55 }, hybridKw: 0, shiftT: 0.2,
-    body: { L: 4.24, W: 1.86, wheelR: 0.32, wheelW: 0.25, axF: 1.05,
-      low: [[0, 0.85, 0.22, 0.5], [0.08, 0.98, 0.18, 0.707], [0.3, 1, 0.18, 0.855], [0.8, 1, 0.18, 0.875], [0.97, 0.98, 0.22, 0.808], [1, 0.9, 0.3, 0.72]],
-      cab: { t0: 0.295, r0: 0.45, r1: 0.66, t1: 0.8, roofY: 1.34, hwBot: 0.9, hwTop: 0.74, roofDrop: 0.03 },
-      rim: "turbine", flares: 2, wing: "gb", lamps: "pod2", lights: "rect" },
-    livery: { design: "split", colors: ["#f4f4f1", "#c3202a", "#d9a92b"], number: 2, rim: "white" }
   },
   {
     id: "lionne", cls: "GB", name: "Lionne 205 T16", maker: "Lionne", year: 1985, price: 105000, mesh: "mv6",
@@ -193,6 +160,8 @@ export const CARS = [
   }
 ];
 export const CAR_BY_ID = Object.fromEntries(CARS.map(c => [c.id, c]));
+// Cars that were retired: the car a save that owns one gets instead (same class), and the refund if it has that already.
+export const RETIRED_CARS = { berlinette: { now: "sialia", price: 15000 }, stiletto: { now: "sanremo", price: 42000 }, vierring: { now: "fairheaven", price: 115000 } };
 export function carsInClass(cls) { return CARS.filter(c => c.cls === cls); }
 
 // ---------- Upgrades ----------

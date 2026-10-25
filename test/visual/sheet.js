@@ -3,7 +3,7 @@ async () => {
   const { CAR_BY_ID } = await import('/res/data.js');
   const ui = RL_APP.ui, s = RL_APP.showroom; ui.hide(); RL_APP.menuActive = true;
   const cv = RL_APP.renderer.domElement, out = [];
-  const ids = window.__ids || ['mosquito', 'stiletto', 'vierring', 'pleiad', 'kaze', 'ferox'];
+  const ids = window.__ids || ['mosquito', 'sanremo', 'asti', 'pleiad', 'kaze', 'ferox'];
   for (const id of ids) {
     const car = CAR_BY_ID[id]; s.show(car, car.livery, car.livery.rim); s.auto = false; s.yaw = window.__yaw || 0.8; s.pitch = 0.14; s.dist = 6.4;
     await new Promise(r => setTimeout(r, 300));

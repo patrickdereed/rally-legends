@@ -2,7 +2,7 @@
 
 ## Car models
 
-Twelve cars use modelled bodies made by other artists and shared on Sketchfab under
+All twelve cars use modelled bodies made by other artists and shared on Sketchfab under
 [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Thank you to the authors.
 
 | In the game | Model | Author |

@@ -3,7 +3,7 @@ import { buildStage } from "../force-app/main/default/staticresources/RallyLegen
 import { buildSpec, referenceTime, Vehicle, DT } from "../force-app/main/default/staticresources/RallyLegends/physics.js";
 import { Bot } from "../force-app/main/default/staticresources/RallyLegends/bot.js";
 const only = process.argv[2];
-const carIds = (process.argv[3] || "mosquito,stiletto,vierring,pleiad,kaze").split(",");
+const carIds = (process.argv[3] || "mosquito,sanremo,asti,pleiad,kaze").split(",");
 let bad = 0;
 for (const loc of LOCATIONS) {
   if (only && only !== "all" && loc.id !== only) continue;

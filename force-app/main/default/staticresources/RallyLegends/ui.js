@@ -95,9 +95,9 @@ export class UI {
   v_title() {
     const has = this.c.load();
     if (has) this.showCar(this.c.d.selected);
-    else this.showCar("stiletto", CAR_BY_ID.stiletto.livery, "gold");
+    else this.showCar("asti", CAR_BY_ID.asti.livery, "gold");
     return `<div class="title-screen">
-      <div class="title-logo"><div class="t-kicker">World Rally · 1960 – today</div><h1>RALLY<span>LEGENDS</span></h1><p>Five eras. Fifteen legends. Twenty-seven stages against the clock.</p></div>
+      <div class="title-logo"><div class="t-kicker">World Rally · 1960 – today</div><h1>RALLY<span>LEGENDS</span></h1><p>Five eras. Twelve legends. Twenty-seven stages against the clock.</p></div>
       <div class="title-actions">
         ${has ? `<button class="btn primary big" data-a="continue">Continue career <small>${esc(this.c.d.name)} · level ${this.c.level} · ${fmtCredits(this.c.d.credits)}</small></button>` : ""}
         <button class="btn ${has ? "" : "primary big"}" data-a="go" data-v="newcareer">${has ? "New career" : "Start your career"}</button>

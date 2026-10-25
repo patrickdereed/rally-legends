@@ -30,3 +30,19 @@ while ((ev = c2.ensureEvent("H"))) {
 console.log("season sim ms", (performance.now() - t0).toFixed(0), "standings", JSON.stringify(c2.standings("H")));
 console.log("parts mosquito engine req", JSON.stringify(c2.partRequirement("mosquito", "engine")), "buy", JSON.stringify(c2.buyPart("mosquito", "engine")));
 console.log("G4 car req", JSON.stringify(c2.carRequirement("pennine")));
+
+// Saves that own retired cars: swapped for the class replacement (keeping upgrades) or refunded if already owned.
+{
+  const m = new Career("u3"); m.newCareer("Pat", "mosquito", "amateur");
+  const part = id => ({ parts: Object.fromEntries(PART_CATS.map(p => [p.id, 2])), livery: { key: "factory" }, rim: "gold", liveries: ["factory"], rims: ["gold"], dmg: { engine: 0.1, susp: 0, body: 0 }, km: 50 });
+  m.d.garage.berlinette = part(); m.d.garage.stiletto = part(); m.d.garage.vierring = part();
+  m.addCar("fairheaven");
+  m.d.selected = "stiletto"; m.d.seasons.GB = { carId: "vierring", season: 1, round: 0, done: false };
+  const before = m.d.credits;
+  m.save(); m.load();
+  const ok = !m.d.garage.berlinette && !m.d.garage.stiletto && !m.d.garage.vierring &&
+    m.d.garage.sialia?.parts.engine === 2 && m.d.garage.sanremo?.parts.engine === 2 && m.d.selected === "sanremo" &&
+    m.d.seasons.GB.carId === "fairheaven" && m.d.credits === before + 115000;
+  console.log("retired-car migration", ok ? "ok" : "FAILED", JSON.stringify(Object.keys(m.d.garage)), m.d.credits - before);
+  if (!ok) process.exit(1);
+}

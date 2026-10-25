@@ -22,12 +22,9 @@ const LAYOUTS = {
 // sc: supercharger whine; als: anti-lag bangs on lift-off.
 const SOUNDS = {
   mosquito: { layout: "i4", bark: 225, low: 95, rasp: 0.38, bright: 0.55, rough: 0.55, res: [[120, 1.4, 5], [1900, 1.2, 4]], intake: 0.6, whine: 0.9 },   // small A-series four, drop-gear whine
-  berlinette: { layout: "i4", bark: 265, low: 100, rasp: 0.42, bright: 0.7, rough: 0.4, res: [[150, 1.3, 4], [2200, 1.4, 5]], intake: 0.55, whine: 0.25 }, // rear-mounted high-revving four
   sialia: { layout: "i4", bark: 200, low: 88, rasp: 0.26, bright: 0.45, rough: 0.35, res: [[110, 1.2, 5], [1200, 1, 3]], intake: 0.45, whine: 0.25 },     // SOHC four with twin carbs
-  stiletto: { layout: "v6", bark: 300, low: 110, rasp: 0.3, bright: 0.95, rough: 0.25, res: [[180, 1.2, 4], [1500, 2, 6]], intake: 0.6, whine: 0.45 },  // quad-cam V6 wail
   pennine: { layout: "i4", bark: 290, low: 105, rasp: 0.46, bright: 0.85, rough: 0.35, res: [[160, 1.3, 4], [2600, 1.6, 6]], intake: 0.95, whine: 0.6 }, // 16-valve four on twin Webers
   sanremo: { layout: "i4", bark: 250, low: 100, rasp: 0.4, bright: 0.7, rough: 0.35, res: [[140, 1.3, 5], [1700, 1.4, 5]], intake: 0.7, whine: 0.5 },   // twin-cam four, tuned exhaust
-  vierring: { layout: "i5", bark: 210, low: 85, rasp: 0.35, bright: 0.62, rough: 0.3, res: [[135, 1.3, 6], [700, 1.8, 5]], intake: 0.2, whine: 0.6, turbo: 1.4, als: 1 },
   lionne: { layout: "i4", bark: 240, low: 95, rasp: 0.4, bright: 0.65, rough: 0.35, res: [[150, 1.3, 5], [1100, 1.6, 4]], intake: 0.2, whine: 0.6, turbo: 1.1, als: 1 },
   asti: { layout: "i4", bark: 235, low: 95, rasp: 0.38, bright: 0.65, rough: 0.3, res: [[145, 1.3, 5], [1250, 1.6, 4]], intake: 0.2, whine: 0.6, turbo: 0.8, sc: 1, als: 1 },
   fairheaven: { layout: "i4", bark: 190, low: 84, rasp: 0.3, bright: 0.45, rough: 0.45, res: [[115, 1.2, 5], [900, 1.2, 3]], intake: 0.2, whine: 0.5, turbo: 1.25, als: 0.6 },
