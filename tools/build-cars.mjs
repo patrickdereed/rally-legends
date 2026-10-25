@@ -32,12 +32,28 @@ const MODELS = {
   mv6: { pack: 1, fwd: "+x", scale: 1.1, zs: 1.08, paint: ["PlaceholderMV683_Bodymat"], note: "scaled up 10% and lengthened 8%",
     credit: ["Placeholder MV6 '83 - Low poly model", DZ, sf("placeholder-mv6-83-low-poly-model-d78bdfc34e024ac7926853f9ae863190")] },
   asti: { pack: 2, fwd: "+x", scale: 1, paint: ["APGRPA89_Bodymat"],
-    credit: ["Asti Stradale '89 - Low poly model", DZ, sf("asti-stradale-89-low-poly-model-97b15b067111443ebe05840137b49c65")] }
+    credit: ["Asti Stradale '89 - Low poly model", DZ, sf("asti-stradale-89-low-poly-model-97b15b067111443ebe05840137b49c65")] },
+  lasley: { pack: 2, fwd: "+x", scale: 1, paint: ["lasley67_Bodymat"],
+    credit: ["Lasley '67 - Low poly model", DZ, sf("lasley-67-low-poly-model-1269720ec7b84c899eac77c1d325141e")] },
+  doutrive: { pack: 3, fwd: "+x", scale: 0.88, note: "scaled to 88%", paint: ["DOUTRIVE78_bodymat"],
+    credit: ["Doutrive '78 - Low poly model", DZ, sf("doutrive-78-low-poly-model-30700a84311c4bea9ef722f0773ce92a")] },
+  stinger: { pack: 3, fwd: "+x", scale: 1.06, note: "scaled up 6%", paint: ["Boxer96_Body"],
+    credit: ["Stinger '96 - Low Poly model", DZ, sf("stinger-96-low-poly-model-a9832fee5393460baf1675fade6f2f25")] },
+  urban: { pack: 4, fwd: "+x", scale: 1, paint: ["Urban10_bodymat"],
+    credit: ["Urban '10 - Low poly model", DZ, sf("urban-10-low-poly-model-2866efdfa943484391ef8313768e074d")] },
+  eagle: { pack: 2, fwd: "-x", scale: 0.95, note: "scaled to 95%", glass: /^GT1_Glass_Clean$/, paint: ["Body_EagleTurbo92"],
+    credit: ["Eagle Turbo '92 - Retro Style Model", DZ, sf("eagle-turbo-92-retro-style-model-eb7d6c072bf54d9ba6a48f6d49e6abeb")] },
+  sialia: { pack: 4, fwd: "+x", scale: 1, paint: ["SialiaSW68_body"],
+    credit: ["Sialia SW '68 Racemod - Low poly model", DZ, sf("sialia-sw-68-racemod-low-poly-model-2e63fb0a8f7e4ea9b3cbf796e8373d49")] },
+  fairheaven: { pack: 5, fwd: "+x", scale: 1, paint: ["Fairheaven_LT80_Bodymat"],
+    credit: ["Fairheaven SW '84 - Low poly model", DZ, sf("fairheaven-sw-84-low-poly-model-aa0becb6e854422596cac6b21bf79787")] },
+  sanremo: { pack: 5, fwd: "+x", scale: 1, paint: ["Sanremo70_Bodymat"],
+    credit: ["Sanremo '70 - Low poly model", DZ, sf("sanremo-70-low-poly-model-b2261c471645417a8b7e5882d541c248")] }
 };
-const DROP = /WheelStock|WheelSport|(^|_)Wheel_(FL|FR|RL|RR)|Caliper|Shadow/i;
-const WHEEL = /(WheelStock|WheelSport|(^|_)Wheel)_(FL|FR|RL|RR)/i;
-const HEAD = /(Headlights|Rallylights_Headlights)_UCB_Lights_and_Glass_0$/;
-const BRAKE = /Brakelights_UCB_Lights_and_Glass_0$/;
+const DROP = /WheelStock|WheelSport|WheelTuned|(^|_)Wheel_(FL|FR|RL|RR)|Caliper|Shadow/i;
+const WHEEL = /(WheelStock|WheelSport|WheelTuned|(^|_)Wheel)_(FL|FR|RL|RR)/i;
+const HEAD = /(Headlights|Rallylights_Headlights|Foglights)\d*_UCB_Lights_and_Glass_0$|^Glass_Headlights_gt1/i;
+const BRAKE = /Brakelights\d*_UCB_Lights_and_Glass_0$|^Glass_Stoplight_gt1/i;
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "sharp": sharp });
 
@@ -81,6 +97,21 @@ async function build(name) {
     const w = nm.match(WHEEL);
     if (w && mesh && !/Caliper/i.test(nm)) for (const prim of mesh.listPrimitives()) eachVertex(prim, v => wheels[w[3].toUpperCase()].push([...v]));
     if (DROP.test(nm) || (cfg.drop && cfg.drop.test(nm)) || !mesh) { node.dispose(); continue; }
+  }
+  // centre the car: wheels straddle x = 0, body ends equidistant from z = 0 (some sources sit off to one side)
+  {
+    const wp = Object.values(wheels).flat();
+    let zMin = Infinity, zMax = -Infinity;
+    for (const node of scene.listChildren()) for (const prim of node.getMesh().listPrimitives()) eachVertex(prim, v => { zMin = Math.min(zMin, v[2]); zMax = Math.max(zMax, v[2]); });
+    const dx = wp.length ? wp.reduce((s, v) => s + v[0], 0) / wp.length : 0, dz = (zMin + zMax) / 2;
+    if (Math.abs(dx) > 0.005 || Math.abs(dz) > 0.005) {
+      const done = new Set();
+      for (const node of scene.listChildren()) for (const prim of node.getMesh().listPrimitives()) {
+        const acc = prim.getAttribute("POSITION"); if (done.has(acc)) continue; done.add(acc);
+        const v = [0, 0, 0]; for (let i = 0; i < acc.getCount(); i++) { acc.getElement(i, v); v[0] -= dx; v[2] -= dz; acc.setElement(i, v); }
+      }
+      for (const v of wp) { v[0] -= dx; v[2] -= dz; }
+    }
   }
   // tag lamps with their own material copies so the game can light them separately
   const tagged = new Map();
@@ -127,7 +158,7 @@ async function build(name) {
   const allPaint = [], glass = [], all = [];
   for (const mesh of R.listMeshes()) for (const prim of mesh.listPrimitives()) {
     const mat = prim.getMaterial(), isPaint = mat.getName() === "paint";
-    const isGlass = mat.getAlphaMode() === "BLEND" && !/lamp|Numberplate|badge/i.test(mat.getName());
+    const isGlass = cfg.glass ? cfg.glass.test(mat.getName()) : mat.getAlphaMode() === "BLEND" && /glass|transperent|^glas$/i.test(mat.getName()) && !/lamp/i.test(mat.getName());
     eachVertex(prim, (v, n) => { all.push([...v]); if (isPaint) allPaint.push([...v]); if (isGlass) glass.push([...v, ...n]); });
   }
   const wheel = k => {
@@ -148,10 +179,11 @@ async function build(name) {
   const belt = pct(sideGlass.map(p => p[1]), 0.02);
   const roofY = Math.max(...allPaint.filter(p => Math.abs(p[0]) < 0.3 && p[2] < zF && p[2] > zR).map(p => p[1]));
   const centreGlass = glass.filter(p => Math.abs(p[0]) < 0.3);
-  const screenBase = Math.max(...centreGlass.filter(p => p[1] < belt + 0.12 && p[2] > 0).map(p => p[2]));
+  // windscreen base: centre glass near belt height (lamp lenses sit lower and further forward)
+  const screenBase = Math.max(...centreGlass.filter(p => p[1] < belt + 0.12 && p[1] > belt - 0.2 && p[2] > 0 && p[2] < zNose - 0.45).map(p => p[2]));
   const screenTop = Math.max(...centreGlass.filter(p => p[1] > roofY - 0.15).map(p => p[2]));
   const rearTop = Math.min(...centreGlass.filter(p => p[1] > roofY - 0.15).map(p => p[2]));
-  const rearBase = Math.min(...centreGlass.filter(p => p[1] < belt + 0.15 && p[2] < 0).map(p => p[2]));
+  const rearBase = Math.min(...centreGlass.filter(p => p[1] < belt + 0.15 && p[1] > belt - 0.2 && p[2] < 0).map(p => p[2]));
   const hoodY = Math.max(...allPaint.filter(p => Math.abs(p[0]) < 0.3 && p[2] > screenBase && p[2] < screenBase + 0.35).map(p => p[1]));
   // half-width of the lower body along z, for the livery mapping
   const NB = 48, hwBins = new Array(NB).fill(0);
@@ -223,7 +255,7 @@ function writePacks() {
   fs.writeFileSync(path.join(SR, "RallyLegends/kits.js"), "// Generated by tools/build-cars.mjs: which static resource holds each modelled body.\nexport const KIT_PACKS = " +
     JSON.stringify(Object.fromEntries(Object.keys(MODELS).map(k => [k, packName(MODELS[k].pack)])), null, 1).replace(/\n/g, "") + ";\n");
   const page = path.join(root, "force-app/main/default/pages/RallyLegends.page");
-  const src = fs.readFileSync(page, "utf8").replace(/window\.RL_CARS = [^\n]*\n|window\.RL_RES = \{[^}]*\};\n/, "");
+  const src = fs.readFileSync(page, "utf8").replace(/window\.RL_(CARS|RES) = [^\n]*\n/g, "");
   const res = "window.RL_RES = { " + packs.map(n => `${packName(n)}: '{!URLFOR($Resource.${packName(n)})}'`).join(", ") + " };\n";
   fs.writeFileSync(page, src.replace("</script>\n<script type=\"module\"", res + "</script>\n<script type=\"module\""));
 }

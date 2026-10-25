@@ -5,6 +5,10 @@ Adapted from models shared on Sketchfab under Creative Commons Attribution 4.0
 
 asti.glb  "Asti Stradale '89 - Low poly model" by Daniel Zhabotinsky
   https://sketchfab.com/3d-models/asti-stradale-89-low-poly-model-97b15b067111443ebe05840137b49c65
+lasley.glb  "Lasley '67 - Low poly model" by Daniel Zhabotinsky
+  https://sketchfab.com/3d-models/lasley-67-low-poly-model-1269720ec7b84c899eac77c1d325141e
+eagle.glb  "Eagle Turbo '92 - Retro Style Model" by Daniel Zhabotinsky
+  https://sketchfab.com/3d-models/eagle-turbo-92-retro-style-model-eb7d6c072bf54d9ba6a48f6d49e6abeb
 
 Changes: converted to car space, wheels and brake callipers removed, lamp materials separated, livery UVs added,
-textures resized and re-encoded as WebP.
+textures resized and re-encoded as WebP; eagle scaled to 95%.

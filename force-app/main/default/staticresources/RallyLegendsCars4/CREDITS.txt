@@ -1,0 +1,12 @@
+Rally Legends - modelled car bodies
+
+Adapted from models shared on Sketchfab under Creative Commons Attribution 4.0
+(https://creativecommons.org/licenses/by/4.0/).
+
+urban.glb  "Urban '10 - Low poly model" by Daniel Zhabotinsky
+  https://sketchfab.com/3d-models/urban-10-low-poly-model-2866efdfa943484391ef8313768e074d
+sialia.glb  "Sialia SW '68 Racemod - Low poly model" by Daniel Zhabotinsky
+  https://sketchfab.com/3d-models/sialia-sw-68-racemod-low-poly-model-2e63fb0a8f7e4ea9b3cbf796e8373d49
+
+Changes: converted to car space, wheels and brake callipers removed, lamp materials separated, livery UVs added,
+textures resized and re-encoded as WebP.

@@ -24,7 +24,7 @@ export const CLASS_BY_ID = Object.fromEntries(CLASSES.map(c => [c.id, c]));
 // body: geometry for car.js. low = lower-body stations [t 0=nose..1=tail, half-width fraction, bottom y, top y].
 export const CARS = [
   {
-    id: "mosquito", cls: "H", name: "Mosquito 1275 S", maker: "Kestrel", year: 1965, price: 12000, starter: true,
+    id: "mosquito", cls: "H", name: "Mosquito 1275 S", maker: "Kestrel", year: 1965, price: 12000, starter: true, mesh: "lasley",
     blurb: "A tiny front-drive giant-killer. Weighs nothing, turns on a coin, and loves to be thrown at snow banks.",
     hp: 92, mass: 690, drive: "FWD", cgFront: 0.62, wheelbase: 2.04, track: 1.24, hCG: 0.5, cdA: 0.62, clA: 0,
     cyl: 4, rpmIdle: 900, rpmMax: 7200, gears: 4, gearTop: 44, grip: 0.92, brake: 0.86, steerMax: 0.62, turbo: null, hybridKw: 0, shiftT: 0.3,
@@ -46,6 +46,17 @@ export const CARS = [
     livery: { design: "solid", colors: ["#c2121b", "#f2f2f2", "#111111"], number: 18, rim: "silver" }
   },
   {
+    id: "sialia", cls: "H", name: "Sialia SW 1800", maker: "Sialia", year: 1968, price: 16000, mesh: "sialia",
+    blurb: "A family estate with a twin-cam tuned past sensible. Long roof, short tail, and more grip than it has any right to.",
+    hp: 118, mass: 960, drive: "RWD", cgFront: 0.53, wheelbase: 2.41, track: 1.3, hCG: 0.52, cdA: 0.7, clA: 0,
+    cyl: 4, rpmIdle: 900, rpmMax: 7000, gears: 5, gearTop: 47, grip: 0.93, brake: 0.88, steerMax: 0.6, turbo: null, hybridKw: 0, shiftT: 0.3,
+    body: { L: 4.07, W: 1.5, wheelR: 0.27, wheelW: 0.2, axF: 0.69,
+      low: [[0, 0.9, 0.26, 0.66], [0.04, 0.98, 0.22, 0.76], [0.25, 1, 0.2, 0.871], [0.8, 1, 0.2, 0.875], [0.97, 0.98, 0.22, 0.808], [1, 0.9, 0.27, 0.7]],
+      cab: { t0: 0.255, r0: 0.42, r1: 0.9, t1: 0.98, roofY: 1.33, hwBot: 0.94, hwTop: 0.76, roofDrop: 0 },
+      rim: "minilite", flares: 0, wing: "none", lamps: "pod2", lights: "round" },
+    livery: { design: "stripes", colors: ["#2b5d8c", "#f1ece0", "#151515"], number: 11, rim: "silver" }
+  },
+  {
     id: "stiletto", cls: "G4", name: "Stiletto HF", maker: "Lanza", year: 1974, price: 42000,
     blurb: "A mid-engined wedge built for one job. Short wheelbase, savage V6 and a tail that wants to lead.",
     hp: 275, mass: 980, drive: "RWD", cgFront: 0.42, wheelbase: 2.18, track: 1.43, hCG: 0.44, cdA: 0.66, clA: 0.1,
@@ -57,7 +68,7 @@ export const CARS = [
     livery: { design: "chevron", colors: ["#f4f4f0", "#178a4a", "#d0242c"], number: 1, rim: "gold" }
   },
   {
-    id: "pennine", cls: "G4", name: "Pennine RS1800", maker: "Albion", year: 1977, price: 38000,
+    id: "pennine", cls: "G4", name: "Pennine RS1800", maker: "Albion", year: 1977, price: 38000, mesh: "doutrive",
     blurb: "The privateer's favourite: simple, tough, front-engined and always sideways. Forgiving at the limit.",
     hp: 245, mass: 960, drive: "RWD", cgFront: 0.53, wheelbase: 2.4, track: 1.36, hCG: 0.5, cdA: 0.72, clA: 0,
     cyl: 4, rpmIdle: 1000, rpmMax: 8500, gears: 5, gearTop: 53, grip: 0.97, brake: 0.95, steerMax: 0.6, turbo: null, hybridKw: 0, shiftT: 0.24,
@@ -66,6 +77,17 @@ export const CARS = [
       cab: { t0: 0.255, r0: 0.42, r1: 0.66, t1: 0.79, roofY: 1.4, hwBot: 0.94, hwTop: 0.74, roofDrop: 0.02 , aPil: 0.016, bPil: 0.009 },
       rim: "minilite", flares: 1, wing: "duck", lamps: "pod4", lights: "round" },
     livery: { design: "tristripe", colors: ["#f5f5f2", "#13265c", "#d32630"], number: 6, rim: "white" }
+  },
+  {
+    id: "sanremo", cls: "G4", name: "Sanremo 2000 Abarth", maker: "Sanremo", year: 1972, price: 36000, mesh: "sanremo",
+    blurb: "A pretty two-door coupé with a twin-cam up front and a stiff rear axle. Neat and quick, until you ask too much on the brakes.",
+    hp: 230, mass: 940, drive: "RWD", cgFront: 0.54, wheelbase: 2.49, track: 1.41, hCG: 0.48, cdA: 0.66, clA: 0,
+    cyl: 4, rpmIdle: 1000, rpmMax: 8200, gears: 5, gearTop: 53, grip: 0.97, brake: 0.93, steerMax: 0.6, turbo: null, hybridKw: 0, shiftT: 0.24,
+    body: { L: 4.18, W: 1.71, wheelR: 0.28, wheelW: 0.22, axF: 0.8,
+      low: [[0, 0.9, 0.26, 0.66], [0.04, 0.98, 0.22, 0.76], [0.25, 1, 0.2, 0.871], [0.78, 1, 0.2, 0.895], [0.97, 0.98, 0.22, 0.808], [1, 0.9, 0.27, 0.7]],
+      cab: { t0: 0.255, r0: 0.42, r1: 0.66, t1: 0.79, roofY: 1.25, hwBot: 0.94, hwTop: 0.74, roofDrop: 0.02 },
+      rim: "minilite", flares: 1, wing: "none", lamps: "pod4", lights: "round" },
+    livery: { design: "split", colors: ["#c0161d", "#f3f0e6", "#111111"], number: 9, rim: "white" }
   },
   {
     id: "vierring", cls: "GB", name: "Vierring Quattro S1", maker: "Vierring", year: 1985, price: 115000,
@@ -101,6 +123,17 @@ export const CARS = [
     livery: { design: "tristripe", colors: ["#f5f5f3", "#12306b", "#c8141c"], number: 4, rim: "white" }
   },
   {
+    id: "fairheaven", cls: "GB", name: "Fairheaven SW Turbo 4x4", maker: "Fairheaven", year: 1984, price: 98000, mesh: "fairheaven",
+    blurb: "The brick with a Group B heart: a turbo four, a four-wheel-drive conversion and room for the spares in the back. Heavy, stable and surprisingly hard to beat on gravel.",
+    hp: 480, mass: 1100, drive: "AWD", awdRear: 0.55, cgFront: 0.55, wheelbase: 2.65, track: 1.46, hCG: 0.52, cdA: 0.92, clA: 0.4,
+    cyl: 4, rpmIdle: 1000, rpmMax: 7200, gears: 5, gearTop: 57, grip: 1.01, brake: 1.0, steerMax: 0.56, turbo: { lag: 0.7, depth: 0.5 }, hybridKw: 0, shiftT: 0.22,
+    body: { L: 5.03, W: 1.77, wheelR: 0.3, wheelW: 0.23, axF: 1.07,
+      low: [[0, 0.88, 0.24, 0.56], [0.05, 0.98, 0.22, 0.72], [0.3, 1, 0.2, 0.86], [0.85, 1, 0.2, 0.9], [0.98, 0.98, 0.24, 0.82], [1, 0.9, 0.28, 0.72]],
+      cab: { t0: 0.26, r0: 0.4, r1: 0.92, t1: 0.98, roofY: 1.36, hwBot: 0.9, hwTop: 0.76, roofDrop: 0 },
+      rim: "turbine", flares: 1, wing: "roof", lamps: "pod4", lights: "rect" },
+    livery: { design: "tristripe", colors: ["#f4f2ea", "#0f3b7a", "#e3b51f"], number: 8, rim: "white" }
+  },
+  {
     id: "pleiad", cls: "WRC", name: "Pleiad WRX '98", maker: "Pleiad", year: 1998, price: 210000, mesh: "toyama",
     blurb: "Flat-four rumble, gold wheels and a chassis that does what you ask. The benchmark of its era.",
     hp: 300, mass: 1230, drive: "AWD", awdRear: 0.55, cgFront: 0.57, wheelbase: 2.52, track: 1.5, hCG: 0.46, cdA: 0.8, clA: 0.9,
@@ -123,7 +156,18 @@ export const CARS = [
     livery: { design: "diagonal", colors: ["#f1f1ee", "#c6161f", "#111111"], number: 7, rim: "white" }
   },
   {
-    id: "kaze", cls: "R1", name: "Kaze R1 Hybrid", maker: "Kaze", year: 2022, price: 400000,
+    id: "eagle", cls: "WRC", name: "Eagle Turbo GT-R", maker: "Eagle", year: 1992, price: 205000, mesh: "eagle",
+    blurb: "A wide, low turbo coupé on fat tyres. Huge grip on tarmac, a little nervous on the bumps, and the shortest shift time of its era.",
+    hp: 300, mass: 1220, drive: "AWD", awdRear: 0.6, cgFront: 0.55, wheelbase: 2.5, track: 1.63, hCG: 0.43, cdA: 0.78, clA: 1.0,
+    cyl: 6, rpmIdle: 1000, rpmMax: 7800, gears: 6, gearTop: 58, grip: 1.055, brake: 1.07, steerMax: 0.55, turbo: { lag: 0.4, depth: 0.32 }, hybridKw: 0, shiftT: 0.12,
+    body: { L: 4.33, W: 1.88, wheelR: 0.3, wheelW: 0.29, axF: 0.94,
+      low: [[0, 0.85, 0.2, 0.56], [0.05, 0.97, 0.16, 0.7], [0.3, 1, 0.16, 0.855], [0.8, 1, 0.16, 0.875], [0.97, 0.96, 0.2, 0.808], [1, 0.88, 0.26, 0.7]],
+      cab: { t0: 0.255, r0: 0.42, r1: 0.66, t1: 0.82, roofY: 1.1, hwBot: 0.9, hwTop: 0.74, roofDrop: 0.03 },
+      rim: "mesh", flares: 2, wing: "tall", scoop: true, lamps: "none", lights: "rect" },
+    livery: { design: "diagonal", colors: ["#121212", "#f2c418", "#f4f4f4"], number: 12, rim: "gold" }
+  },
+  {
+    id: "kaze", cls: "R1", name: "Kaze R1 Hybrid", maker: "Kaze", year: 2022, price: 400000, mesh: "stinger",
     blurb: "A compact hatch hiding a tubular chassis, 100 kW of hybrid boost and enough aero to bend air.",
     hp: 380, mass: 1260, drive: "AWD", awdRear: 0.5, cgFront: 0.55, wheelbase: 2.63, track: 1.6, hCG: 0.44, cdA: 0.88, clA: 1.7,
     cyl: 4, rpmIdle: 1200, rpmMax: 7800, gears: 5, gearTop: 56, grip: 1.12, brake: 1.12, steerMax: 0.56, turbo: { lag: 0.18, depth: 0.15 }, hybridKw: 100, shiftT: 0.05,
@@ -137,7 +181,7 @@ export const CARS = [
     livery: { design: "shards", colors: ["#f4f4f4", "#d01d27", "#141414"], number: 69, rim: "black" }
   },
   {
-    id: "ferox", cls: "R1", name: "Ferox Rally1 Hybrid", maker: "Albion", year: 2023, price: 420000,
+    id: "ferox", cls: "R1", name: "Ferox Rally1 Hybrid", maker: "Albion", year: 2023, price: 420000, mesh: "urban",
     blurb: "Crossover silhouette, longest wheelbase in the field. Ultra-stable at speed and easy on its tyres.",
     hp: 380, mass: 1270, drive: "AWD", awdRear: 0.55, cgFront: 0.56, wheelbase: 2.68, track: 1.6, hCG: 0.46, cdA: 0.9, clA: 1.8,
     cyl: 4, rpmIdle: 1200, rpmMax: 7700, gears: 5, gearTop: 56, grip: 1.11, brake: 1.12, steerMax: 0.55, turbo: { lag: 0.2, depth: 0.15 }, hybridKw: 100, shiftT: 0.05,
